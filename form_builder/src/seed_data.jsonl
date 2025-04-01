@@ -1,0 +1,4 @@
+{"user_query": "Add email field with validation", "tools": [{"name": "add_control", "parameters": {"section_id": "personal", "control_type": "email", "label": "Email", "required": true, "validation": {"type": "regex", "pattern": "^\\S+@\\S+\\.\\S+$"}}}]}
+{"user_query": "Delete phone field", "tools": [{"name": "delete_control", "parameters": {"control_id": "field_phone"}}]}
+{"user_query": "Create a new section for contact information", "tools": [{"name": "add_section", "parameters": {"title": "Contact Information"}}]}
+{"user_query": "Update the email field to be optional", "tools": [{"name": "update_control", "parameters": {"control_id": "field_email", "required": false}}]} 
