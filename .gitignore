@@ -1,0 +1,17 @@
+@"
+# Ignore virtual environment
+venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore large library files
+*.lib
+*.dll
+*.so
+*.dylib
+
+# Ignore environment variables
+.env
+"@ | Set-Content .gitignore
