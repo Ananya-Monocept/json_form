@@ -1,0 +1,30 @@
+@"
+# Ignore virtual environment
+venv/
+ 
+# Ignore Python cache files
+__pycache__/
+*.pyc
+ 
+# Ignore large library files
+*.lib
+*.dll
+*.so
+*.dylib
+ 
+# Ignore environment variables
+.env
+"@ | Set-Content .gitignore
+ # Ignore specific project directories
+form_builder/build/
+form_builder/dist/
+
+# Ignore database files
+*.db
+*.sqlite3
+
+# Ignore log files
+*.log
+
+# Ignore generated files
+*.generated.*

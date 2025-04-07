@@ -1,306 +1,222 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, Field
-import json
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-import os
 from dotenv import load_dotenv
-import torch
+from langgraph.graph import StateGraph, START, END
+from trustcall import create_extractor
+from ollama import Client as OllamaClient  # Assuming Ollama is used for LLM calls
+import json
+from form_builder.src.form_models import IForm, IFormSections, IFormControl, IValidator
 
 # Load environment variables
 load_dotenv()
 
-# Get Hugging Face token
-HF_TOKEN = os.getenv('HUGGINGFACE_HUB_TOKEN')
+app = FastAPI(title="Form Builder API with LangGraph")
 
-# Define a fallback model that's more accessible
-DEFAULT_MODEL = "microsoft/phi-2"  # Better model for structured outputs
+# Initialize Ollama client
+ollama_client = OllamaClient()
+DEFAULT_MODEL = "llama3.2:3b-instruct-q8_0"
 
-class Control(BaseModel):
-    id: str
-    type: str
-    label: str
-    required: bool = False
-    validation: Optional[Dict] = None
+# Define tools for TrustCall
+tools = [
+    {
+        "name": "add_section",
+        "description": "Adds a new section to the form.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sectionTitle": {"type": "string", "description": "Title of the section"}
+            },
+            "required": ["sectionTitle"]
+        }
+    },
+    {
+        "name": "add_control",
+        "description": "Adds a new control to a section.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sectionTitle": {"type": "string", "description": "Title of the section"},
+                "controlType": {"type": "string", "description": "Type of the control"},
+                "label": {"type": "string", "description": "Label of the control"},
+                "required": {"type": "boolean", "description": "Whether the control is required"},
+                "validation": {"type": "object", "description": "Validation rules for the control"}
+            },
+            "required": ["sectionTitle", "controlType", "label"]
+        }
+    },
+    {
+        "name": "update_control",
+        "description": "Updates an existing control.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "controlName": {"type": "string", "description": "Name of the control"},
+                "updates": {"type": "object", "description": "Key-value pairs to update"}
+            },
+            "required": ["controlName", "updates"]
+        }
+    },
+    {
+        "name": "delete_control",
+        "description": "Deletes an existing control.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "controlName": {"type": "string", "description": "Name of the control"}
+            },
+            "required": ["controlName"]
+        }
+    }
+]
 
-class Section(BaseModel):
-    id: str
-    title: str
-    controls: List[Control] = []
+# Initialize TrustCall extractor
+trustcall = create_extractor(
+    llm=ollama_client,
+    tools=tools,
+    tool_choice="any"
+)
 
-class Form(BaseModel):
-    sections: List[Section] = []
-
+# FormBuilder Class
 class FormBuilder:
-    def __init__(self, model_name: str = None):
-        # Use the provided model or default to a more accessible one
-        if model_name is None:
-            model_name = DEFAULT_MODEL
-            print(f"Using default model: {DEFAULT_MODEL}")
-        
-        try:
-            print(f"Loading model: {model_name}")
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(model_name)
-            print("Model loaded successfully")
-            
-            # Create a text generation pipeline
-            self.generator = pipeline(
-                "text-generation",
-                model=self.model,
-                tokenizer=self.tokenizer,
-                max_length=512
-            )
-            print("Text generation pipeline created")
-        except Exception as e:
-            print(f"Error loading model: {str(e)}")
-            # Always fallback to GPT-2 as a last resort
-            model_name = "gpt2"
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.model = AutoModelForCausalLM.from_pretrained(model_name)
-            
-            # Create a text generation pipeline
-            self.generator = pipeline(
-                "text-generation",
-                model=self.model,
-                tokenizer=self.tokenizer,
-                max_length=512
-            )
-            print(f"Fallback to {model_name} model")
-            
-        self.form = Form(sections=[])
-        self._control_counter = 0
+    def __init__(self):
+        self.form = IForm(
+            formTitle="Untitled Form",
+            themeFile="default_theme.json",
+            formSections=[]
+        )
 
-    def _generate_control_id(self) -> str:
-        self._control_counter += 1
-        return f"control_{self._control_counter}"
-
-    def add_section(self, title: str) -> Dict:
-        section_id = f"section_{len(self.form.sections)}"
-        new_section = Section(id=section_id, title=title)
-        self.form.sections.append(new_section)
+    def add_section(self, section_title: str) -> Dict:
+        section_id = f"section_{len(self.form.formSections)}"
+        new_section = IFormSections(
+            sectionTitle=section_title,
+            formControls=[]
+        )
+        self.form.formSections.append(new_section)
         return {"status": "success", "section_id": section_id}
 
-    def add_control(self, section_id: str, control_type: str, label: str, 
-                   required: bool = False, validation: Optional[Dict] = None) -> Dict:
-        for section in self.form.sections:
-            if section.id == section_id:
-                control = Control(
-                    id=self._generate_control_id(),
-                    type=control_type,
+    def add_control(self, section_title: str, control_type: str, label: str, required: bool = False, validation: Optional[Dict] = None) -> Dict:
+        for section in self.form.formSections:
+            if section.sectionTitle == section_title:
+                control = IFormControl(
+                    name=f"control_{len(section.formControls)}",
                     label=label,
-                    required=required,
-                    validation=validation
+                    visibleLabel=True,
+                    type_=control_type,
+                    validators=[IValidator(required=required, **(validation or {}))]
                 )
-                section.controls.append(control)
-                return {"status": "success", "control_id": control.id}
+                section.formControls.append(control)
+                return {"status": "success", "control_name": control.name}
         return {"error": "Section not found"}
 
-    def update_control(self, control_id: str, **kwargs) -> Dict:
-        for section in self.form.sections:
-            for control in section.controls:
-                if control.id == control_id:
-                    for key, value in kwargs.items():
+    def update_control(self, control_name: str, updates: Dict) -> Dict:
+        for section in self.form.formSections:
+            for control in section.formControls:
+                if control.name == control_name:
+                    for key, value in updates.items():
                         setattr(control, key, value)
                     return {"status": "updated"}
         return {"error": "Control not found"}
 
-    def delete_control(self, control_id: str) -> Dict:
-        for section in self.form.sections:
-            section.controls = [c for c in section.controls if c.id != control_id]
+    def delete_control(self, control_name: str) -> Dict:
+        for section in self.form.formSections:
+            section.formControls = [c for c in section.formControls if c.name != control_name]
         return {"status": "deleted"}
 
     def get_form(self) -> Dict:
         return self.form.model_dump()
 
-    def generate_form(self, form_description: str) -> Dict[str, Any]:
-        prompt = f"""You are a JSON schema generator. Given a form description, you will output a valid JSON schema for that form.
-        
-        FORM DESCRIPTION: {form_description}
-        
-        RULES:
-        1. Return ONLY valid JSON with no additional text or explanation
-        2. Use the following structure:
-           {{
-             "type": "object",
-             "properties": {{
-               "fieldName": {{ "type": "string", "required": true }},
-               "anotherField": {{ "type": "number", "minimum": 0 }}
-             }}
-           }}
-        3. Common field types: string, number, boolean
-        4. For validation, use: required, format, minimum, maximum, minLength, maxLength
-        
-        YOUR JSON SCHEMA:
-        """
-        
-        try:
-            # Use the pipeline for text generation
-            results = self.generator(
-                prompt, 
-                max_new_tokens=500, 
-                do_sample=True, 
-                temperature=0.3,  # Lower temperature for more focused outputs
-                top_p=0.95,
-                num_return_sequences=1
-            )
-            
-            response_text = results[0]['generated_text']
-            # Remove the original prompt from the response
-            if prompt in response_text:
-                response_text = response_text[len(prompt):].strip()
-            
-            # Extract JSON from response
-            try:
-                # Try to find JSON in markdown code block
-                if "```json" in response_text:
-                    json_str = response_text.split("```json")[1].split("```")[0].strip()
-                elif "```" in response_text:
-                    json_str = response_text.split("```")[1].strip() 
-                else:
-                    # Just try to parse the whole thing
-                    json_str = response_text.strip()
-                
-                # Try to clean up any leading/trailing text
-                first_brace = json_str.find('{')
-                last_brace = json_str.rfind('}')
-                if first_brace != -1 and last_brace != -1:
-                    json_str = json_str[first_brace:last_brace+1]
-                
-                json_obj = json.loads(json_str)
-                print("Successfully parsed JSON response")
-                return json_obj
-            except Exception as json_error:
-                print(f"Error parsing JSON: {str(json_error)}")
-                print(f"Raw response: {response_text}")
-                # Return a simple fallback schema if JSON parsing fails
-                return {
-                    "type": "object",
-                    "properties": {
-                        "input": {"type": "string", "required": True},
-                    }
-                }
-        except Exception as e:
-            print(f"Error generating form: {str(e)}")
-            # Return a simple fallback schema
-            return {
-                "type": "object",
-                "properties": {
-                    "input": {"type": "string", "required": True},
-                }
-            }
+# Initialize FormBuilder
+builder = FormBuilder()
 
-class FormGenerator:
-    def __init__(self):
-        self.form_builder = FormBuilder()
-    
-    def generate_form_schema(self, description: str) -> Dict[str, Any]:
-        return self.form_builder.generate_form(description)
-        
-    def generate_with_jsonformer(self, prompt: str) -> Dict[str, Any]:
-        # Since we're not using jsonformer anymore, just delegate to generate_form
-        return self.form_builder.generate_form(prompt)
-        
-    def generate(self, prompt: str, tools: List[str] = None) -> List[Dict]:
-        """Generate tool calls based on the prompt"""
-        # Generate a form schema using the LLM
-        form_json = self.form_builder.generate_form(prompt)
-        tool_calls = []
-        
-        # Extract a title from the prompt for the section
-        section_title = "Form Section"
-        if "form" in prompt.lower():
-            # Extract a potential title from the prompt
-            words = prompt.split()
-            for i, word in enumerate(words):
-                if word.lower() == "form" and i > 0:
-                    section_title = f"{words[i-1]} Form"
-                    break
-        
-        # Add a section
-        tool_calls.append({
-            "name": "add_section",
-            "parameters": {
-                "title": section_title
-            }
-        })
-        
-        # Try to extract fields from the generated form
-        if "properties" in form_json:
-            for field_name, field_info in form_json.get("properties", {}).items():
-                # Determine the control type based on field type
-                field_type = field_info.get("type", "text").lower()
-                control_type = "text"
-                
-                if field_type == "number" or field_type == "integer":
-                    control_type = "number"
-                elif field_type == "boolean":
-                    control_type = "checkbox"
-                elif field_type == "string":
-                    # Check if there's a format specified
-                    if field_info.get("format", "").lower() == "email":
-                        control_type = "email"
-                    elif "password" in field_name.lower():
-                        control_type = "password"
-                
-                # Determine if field is required
-                is_required = field_info.get("required", False)
-                if is_required is None:
-                    is_required = False
-                    
-                # Create validation rules if present
-                validation = {}
-                for rule in ["minimum", "maximum", "minLength", "maxLength", "pattern", "format"]:
-                    if rule in field_info:
-                        validation[rule] = field_info[rule]
-                
-                if not validation:
-                    validation = None
-                    
-                # Add the control to the section
-                tool_calls.append({
-                    "name": "add_control",
-                    "parameters": {
-                        "section_id": "section_0",
-                        "control_type": control_type,
-                        "label": field_name.replace("_", " ").title(),
-                        "required": is_required,
-                        "validation": validation
-                    }
-                })
-        
-        return tool_calls
+# Define the state model for the graph
+class FormState(BaseModel):
+    prompt: str
+    tool_calls: List[Dict] = []
+    form_data: Dict[str, Any] = {}
 
-def validate_form(form_data: Dict[str, Any], schema: Dict[str, Any]) -> List[str]:
-    errors = []
-    
-    def validate_field(value: Any, field_schema: Dict[str, Any], field_name: str) -> None:
-        if "type" not in field_schema:
-            errors.append(f"Field {field_name} has no type specified")
-            return
-            
-        field_type = field_schema["type"]
-        if field_type == "string":
-            if not isinstance(value, str):
-                errors.append(f"Field {field_name} must be a string")
-        elif field_type == "number":
-            if not isinstance(value, (int, float)):
-                errors.append(f"Field {field_name} must be a number")
-        elif field_type == "boolean":
-            if not isinstance(value, bool):
-                errors.append(f"Field {field_name} must be a boolean")
-        elif field_type == "array":
-            if not isinstance(value, list):
-                errors.append(f"Field {field_name} must be an array")
-            elif "items" in field_schema:
-                for i, item in enumerate(value):
-                    validate_field(item, field_schema["items"], f"{field_name}[{i}]")
-    
-    for field_name, field_schema in schema.get("properties", {}).items():
-        if field_name not in form_data:
-            if field_schema.get("required", False):
-                errors.append(f"Required field {field_name} is missing")
-            continue
-            
-        validate_field(form_data[field_name], field_schema, field_name)
-    
-    return errors 
+# Define the graph
+graph = StateGraph(FormState)
+
+# Step 1: Parse the prompt and generate tool calls
+def parse_prompt(state: FormState) -> FormState:
+    result = trustcall.invoke({
+        "messages": [{"role": "user", "content": state.prompt}]
+    })
+    tool_calls = result.get("tool_calls", [])
+    return FormState(prompt=state.prompt, tool_calls=tool_calls)
+
+graph.add_node("parse_prompt", parse_prompt)
+
+# Step 2: Execute tool calls
+def execute_tools(state: FormState) -> FormState:
+    for call in state.tool_calls:
+        func = getattr(builder, call["name"], None)
+        if func:
+            func(**call["parameters"])
+    return state
+
+graph.add_node("execute_tools", execute_tools)
+
+# Step 3: Generate the final form schema
+def generate_form(state: FormState) -> FormState:
+    form_schema = builder.get_form()
+    return FormState(prompt=state.prompt, form_data=form_schema)
+
+graph.add_node("generate_form", generate_form)
+
+# Connect the nodes
+graph.add_edge(START, "parse_prompt")
+graph.add_edge("parse_prompt", "execute_tools")
+graph.add_edge("execute_tools", "generate_form")
+graph.add_edge("generate_form", END)
+
+# Compile the graph
+app_graph = graph.compile()
+
+@app.post("/generate-form")
+async def generate_form(prompt: str) -> Dict:
+    """
+    Generate a form schema using LangGraph and TrustCall.
+    """
+    try:
+        # Initialize the state
+        initial_state = FormState(prompt=prompt)
+
+        # Run the graph
+        final_state = app_graph.invoke(initial_state)
+
+        # Return the generated form
+        return final_state.form_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/add-section")
+async def add_section(section_title: str) -> Dict:
+    return builder.add_section(section_title)
+
+@app.post("/add-control")
+async def add_control(
+    section_title: str,
+    control_type: str,
+    label: str,
+    required: bool = False,
+    validation: Optional[Dict] = None
+) -> Dict:
+    return builder.add_control(section_title, control_type, label, required, validation)
+
+@app.put("/update-control/{control_name}")
+async def update_control(control_name: str, updates: Dict) -> Dict:
+    return builder.update_control(control_name, updates)
+
+@app.delete("/delete-control/{control_name}")
+async def delete_control(control_name: str) -> Dict:
+    return builder.delete_control(control_name)
+
+@app.get("/get-form")
+async def get_form() -> Dict:
+    return builder.get_form()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
