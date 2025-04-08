@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from ollama import Client as OllamaClient
 import json
+import re
 from langgraph.graph import START, END, Graph
 from form_models import IForm, IFormSections, IFormControl, IValidator
 
@@ -22,6 +23,7 @@ ollama_client = OllamaClient()
 class FormBuilder:
     def __init__(self):
         self.reset_form()
+        self.expected_controls_count = 0  # Track expected number of controls
 
     def reset_form(self):
         """Reset the form to initial state"""
@@ -39,6 +41,11 @@ class FormBuilder:
             formSections=[],
             class_=None
         )
+        self.expected_controls_count = 0
+        
+    def set_expected_controls(self, count: int):
+        """Set the expected number of controls to be added to the form"""
+        self.expected_controls_count = count
 
     def add_section(self, sectionTitle: str) -> Dict:
         """Add a new section to the form."""
@@ -83,10 +90,14 @@ class FormBuilder:
         return {"status": "success", "form_title": title}
 
     def is_form_complete(self) -> bool:
-        """Check if the form has at least one section with controls."""
-        return len(self.form.formSections) > 0 and any(
-            len(section.formControls) > 0 for section in self.form.formSections
-        )
+        """Check if the form has all expected controls."""
+        total_controls = sum(len(section.formControls) for section in self.form.formSections)
+        # Only consider form complete if we've added all expected controls
+        # And we have at least one section with controls
+        return (self.expected_controls_count > 0 and 
+                total_controls >= self.expected_controls_count and
+                len(self.form.formSections) > 0 and 
+                any(len(section.formControls) > 0 for section in self.form.formSections))
 
     def get_current_form(self) -> Dict:
         """Return the current form state"""
@@ -98,7 +109,6 @@ class FormBuilder:
 
 # Initialize FormBuilder
 builder = FormBuilder()
-
 
 # Define tools for the agent
 tools = {
@@ -142,6 +152,107 @@ tools = {
 }
 
 
+def extract_sections_and_controls(prompt: str) -> List[Dict]:
+    """
+    Dynamically extract sections, controls, and validation rules from the user's prompt.
+    Example: "Create a form with sections Basic Information and Contact Details. Add Full Name (text, required, max length 50), Email (email, required), and Age (number, min value 18)."
+    Returns: [
+        {"section": "Basic Information", "controls": [{"field": "Full Name", "type": "text", "validations": {"required": True, "maxLength": 50}}]},
+        {"section": "Contact Details", "controls": [{"field": "Email", "type": "email", "validations": {"required": True}}]}
+    ]
+    """
+    section_patterns = r"\b(?:sections?|section titled)\s*([\w\s,]+)"
+    sections = []
+    section_match = re.search(section_patterns, prompt, re.IGNORECASE)
+    if section_match:
+        sections = [section.strip() for section in section_match.group(1).split(",")]
+
+    # Default to a single section if none found
+    if not sections:
+        sections = ["Form Section"]
+
+    extracted_data = []
+    field_validation_keywords = {
+        "required": r"\b(required)\b",
+        "max_length": r"\b(max\s*length|maxlen)\s*(\d+)",
+        "min_length": r"\b(min\s*length|minlen)\s*(\d+)",
+        "email": r"\b(email)\b",
+        "min_value": r"\b(min\s*value|minval)\s*(\d+)",
+        "max_value": r"\b(max\s*value|maxval)\s*(\d+)",
+        "pattern": r"\b(pattern)\s*([\w\W]+)",
+    }
+
+    # If we have multiple sections, try to distribute fields
+    field_pattern = r"([\w\s]+)\s*\(([\w\s,]+)\)"
+    field_matches = re.findall(field_pattern, prompt, re.IGNORECASE)
+    
+    total_controls = len(field_matches)
+    builder.set_expected_controls(total_controls)  # Set the expected control count
+    
+    # Simple distribution - first field to first section, etc.
+    section_idx = 0
+    fields_by_section = {section: [] for section in sections}
+    
+    for field_name, field_details in field_matches:
+        # Assign field to current section
+        fields_by_section[sections[section_idx]].append((field_name, field_details))
+        # Move to next section (with wrap-around)
+        section_idx = (section_idx + 1) % len(sections)
+
+    for section, fields in fields_by_section.items():
+        fields_with_validations = []
+        
+        for field_name, field_details in fields:
+            field_name = field_name.strip()
+            validations = {}
+            field_type = None
+
+            # Infer field type from details
+            if "text" in field_details.lower():
+                field_type = "text"
+            elif "email" in field_details.lower():
+                field_type = "email"
+            elif "number" in field_details.lower():
+                field_type = "number"
+            elif "date" in field_details.lower():
+                field_type = "date"
+            elif "select" in field_details.lower():
+                field_type = "select"
+            elif "textarea" in field_details.lower():
+                field_type = "textarea"
+            elif "checkbox" in field_details.lower():
+                field_type = "checkbox"
+            elif "radio" in field_details.lower():
+                field_type = "radio"
+            elif "file" in field_details.lower():
+                field_type = "file"
+            else:
+                # Default to text if no type specified
+                field_type = "text"
+
+            # Extract validation rules
+            for key, keyword_pattern in field_validation_keywords.items():
+                validation_match = re.search(keyword_pattern, field_details, re.IGNORECASE)
+                if validation_match:
+                    if key in ["max_length", "min_length", "min_value", "max_value"]:
+                        validations[key] = int(validation_match.group(2))
+                    elif key in ["required", "email"]:
+                        validations[key] = True
+                    elif key == "pattern":
+                        validations[key] = validation_match.group(2).strip()
+
+            fields_with_validations.append({
+                "field": field_name,
+                "type": field_type,
+                "validations": validations
+            })
+
+        if fields_with_validations:  # Only add sections with fields
+            extracted_data.append({"section": section, "controls": fields_with_validations})
+
+    return extracted_data
+
+
 # Define the workflow
 workflow = Graph()
 
@@ -149,48 +260,79 @@ workflow = Graph()
 @workflow.add_node
 def start_node(state: dict):
     """Process the initial user input."""
-    system_prompt = """You are a form generation assistant. Your task is to create forms based on user requirements.
+    prompt = state["prompt"]
+
+    # Dynamically extract sections and controls
+    extracted_data = extract_sections_and_controls(prompt)
+
+    system_prompt = f"""
+    You are a form generation assistant. Your task is to create forms based on user requirements.
     You have access to these tools:
-    1. add_section - Use this to add a new section to the form
-    2. add_control - Use this to add form fields to sections
-    3. set_form_title - Use this to set a descriptive title for the form
-    
+    1. add_section - Use this to add a new section to the form.
+    2. add_control - Use this to add form fields to sections.
+    3. set_form_title - Use this to set a descriptive title for the form.
+
     Follow these steps for every form request:
-    1. First set an appropriate form title using set_form_title
-    2. Create appropriate sections using add_section
-    3. Add relevant controls to each section using add_control
-    
-    For control types, choose from: text, email, number, date, select, textarea, checkbox, radio
-    
+    1. First, set an appropriate form title using set_form_title.
+    2. Create appropriate sections using add_section.
+    3. Add ALL relevant controls to each section using add_control.
+
+    For control types, choose from: text, email, number, date, select, textarea, checkbox, radio.
+    Ensure that ALL fields mentioned in the user's request are included in the form.
+
+    Sections and fields to include: {json.dumps(extracted_data)}
+
     Example response format:
     [
-      {
+      {{
         "name": "set_form_title", 
-        "parameters": {"title": "Personal Information Form"}
-      },
-      {
+        "parameters": {{"title": "Personal Information Form"}}
+      }},
+      {{
         "name": "add_section",
-        "parameters": {"sectionTitle": "Basic Information"}
-      },
-      {
+        "parameters": {{"sectionTitle": "Basic Information"}}
+      }},
+      {{
         "name": "add_control",
-        "parameters": {
+        "parameters": {{
           "sectionTitle": "Basic Information",
           "controlType": "text",
           "label": "Full Name",
+          "required": true,
+          "validation": {{"maxLength": 50}}
+        }}
+      }},
+      {{
+        "name": "add_control",
+        "parameters": {{
+          "sectionTitle": "Basic Information",
+          "controlType": "email",
+          "label": "Email",
           "required": true
-        }
-      }
+        }}
+      }},
+      {{
+        "name": "add_control",
+        "parameters": {{
+          "sectionTitle": "Basic Information",
+          "controlType": "number",
+          "label": "Age",
+          "required": false,
+          "validation": {{"minValue": 18}}
+        }}
+      }}
     ]
-    
-    Make sure to create a complete and usable form with all necessary fields based on the user's request.
+
+    Make sure to create a complete and usable form with ALL necessary fields and validations based on the user's request.
     """
+
     return {
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": state["prompt"]}
+            {"role": "user", "content": prompt}
         ],
-        "iteration_count": 0
+        "iteration_count": 0,
+        "extracted_data": extracted_data
     }
 
 
@@ -199,7 +341,8 @@ def llm_node(state: dict):
     """Call the LLM to determine actions."""
     messages = state["messages"]
     iteration_count = state.get("iteration_count", 0)
-    
+    extracted_data = state.get("extracted_data", [])
+
     # Prevent infinite loops
     if iteration_count > 10:
         return {
@@ -214,14 +357,14 @@ def llm_node(state: dict):
         "model": DEFAULT_MODEL,
         "messages": messages,
         "format": "json",
-        "options": {"temperature": 0.3}
+        "options": {"temperature": 0.5}
     }
 
     # Get response from Ollama
     try:
         response = ollama_client.chat(**prompt)
         message = response["message"]
-        
+
         # Try to parse tool calls from the response
         tool_calls = []
         try:
@@ -234,9 +377,7 @@ def llm_node(state: dict):
                 elif all(k in content for k in ["name", "parameters"]):
                     tool_calls = [content]
         except (json.JSONDecodeError, AttributeError, TypeError):
-            # If parsing fails, assume it's a natural language response
             print(f"LLM response not in expected format: {message['content']}")
-            # Add the message to context and try again
             messages.append(message)
             return {
                 "messages": messages,
@@ -245,12 +386,16 @@ def llm_node(state: dict):
                 "form_complete": False
             }
 
+        print(f"LLM Response: {message['content']}")
+        print(f"Parsed Tool Calls: {tool_calls}")
+
         return {
             "messages": messages + [message],
             "tool_calls": tool_calls,
             "iteration_count": iteration_count + 1,
             "form_complete": builder.is_form_complete()
         }
+
     except Exception as e:
         print(f"Error calling LLM: {e}")
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
@@ -282,6 +427,15 @@ def tool_node(state: dict):
                     "error": str(e)
                 })
 
+    # Count current controls for debugging
+    total_controls = sum(len(section.formControls) for section in builder.form.formSections)
+    expected_controls = builder.expected_controls_count
+    print(f"Progress: {total_controls}/{expected_controls} controls added")
+
+    # Only mark as complete if we've added all expected controls
+    form_complete = builder.is_form_complete()
+    print(f"Form complete: {form_complete}")
+
     return {
         "messages": messages + [{
             "role": "tool",
@@ -289,7 +443,7 @@ def tool_node(state: dict):
             "tool_call_id": tool_call.get("id", "") if tool_calls else ""
         }],
         "results": results,
-        "form_complete": builder.is_form_complete()
+        "form_complete": form_complete
     }
 
 
@@ -307,7 +461,7 @@ workflow.add_edge("start_node", "llm_node")
 workflow.add_conditional_edges(
     "llm_node",
     lambda state: (
-        state.get("form_complete", False) or 
+        state.get("form_complete", False) or
         not state.get("tool_calls") or
         len(state.get("tool_calls", [])) == 0
     ),
@@ -326,7 +480,6 @@ workflow.add_conditional_edges(
         False: "llm_node"
     }
 )
-
 workflow.add_edge("end_node", END)
 
 # Compile the workflow
@@ -334,21 +487,19 @@ app_workflow = workflow.compile()
 
 
 # API Endpoints
-
 @app.post("/generate-form")
 async def generate_form(prompt: str) -> Dict:
     """Generate a form based on the user's prompt."""
     try:
         # Reset the form builder for a fresh form
         builder.reset_form()
-
         # Execute the workflow
         result = app_workflow.invoke({"prompt": prompt})
-
         # Return the generated form
         return builder.get_current_form()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/add-section")
 async def add_section(title: str) -> Dict:
@@ -358,6 +509,7 @@ async def add_section(title: str) -> Dict:
         return {"status": "success", "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/add-control")
 async def add_control(
@@ -378,6 +530,7 @@ async def add_control(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/set-title")
 async def set_title(title: str) -> Dict:
     """Manually set the form title."""
@@ -387,6 +540,7 @@ async def set_title(title: str) -> Dict:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.get("/get-form")
 async def get_form() -> Dict:
     """Get the current form state."""
@@ -394,6 +548,7 @@ async def get_form() -> Dict:
         return builder.get_current_form()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/reset-form")
 async def reset_form() -> Dict:
