@@ -1,18 +1,26 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TypedDict
 from dotenv import load_dotenv
 from ollama import Client as OllamaClient
 import json
 import re
 from langgraph.graph import START, END, Graph
 from form_models import IForm, IFormSections, IFormControl, IValidator
-
+from langchain_core.runnables.config import RunnableConfig
+from fastapi.middleware.cors import CORSMiddleware
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(title="Form Builder API")
-
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For development - allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 # Define a fallback model
 DEFAULT_MODEL = "llama3.2:3b-instruct-q8_0"
 
@@ -253,12 +261,24 @@ def extract_sections_and_controls(prompt: str) -> List[Dict]:
     return extracted_data
 
 
+# Define the workflow state type
+class WorkflowState(TypedDict, total=False):
+    prompt: str
+    messages: List[Dict[str, Any]]
+    iteration_count: int
+    tool_calls: List[Dict[str, Any]]
+    form_complete: bool
+    extracted_data: List[Dict[str, Any]]
+    results: List[Dict[str, Any]]
+    form: Any
+
+
 # Define the workflow
 workflow = Graph()
 
 
 @workflow.add_node
-def start_node(state: dict):
+def start_node(state: WorkflowState) -> WorkflowState:
     """Process the initial user input."""
     prompt = state["prompt"]
 
@@ -333,18 +353,19 @@ def start_node(state: dict):
         ],
         "iteration_count": 0,
         "extracted_data": extracted_data
+        
     }
 
 
 @workflow.add_node
-def llm_node(state: dict):
+def llm_node(state: WorkflowState) -> WorkflowState:
     """Call the LLM to determine actions."""
     messages = state["messages"]
     iteration_count = state.get("iteration_count", 0)
     extracted_data = state.get("extracted_data", [])
 
     # Prevent infinite loops
-    if iteration_count > 10:
+    if iteration_count >= 10:
         return {
             "messages": messages,
             "iteration_count": iteration_count,
@@ -402,7 +423,7 @@ def llm_node(state: dict):
 
 
 @workflow.add_node
-def tool_node(state: dict):
+def tool_node(state: WorkflowState) -> WorkflowState:
     """Execute the tools."""
     tool_calls = state["tool_calls"]
     messages = state["messages"]
@@ -448,7 +469,7 @@ def tool_node(state: dict):
 
 
 @workflow.add_node
-def end_node(state: dict):
+def end_node(state: WorkflowState) -> WorkflowState:
     """Finalize the form generation."""
     return {"form": builder.form}
 
@@ -493,11 +514,17 @@ async def generate_form(prompt: str) -> Dict:
     try:
         # Reset the form builder for a fresh form
         builder.reset_form()
-        # Execute the workflow
-        result = app_workflow.invoke({"prompt": prompt})
+        
+        # Create a configuration with increased recursion limit
+        config = RunnableConfig(recursion_limit=50)
+        
+        # Execute the workflow with the config
+        result = app_workflow.invoke({"prompt": prompt}, config=config)
+        
         # Return the generated form
         return builder.get_current_form()
     except Exception as e:
+        print(f"Error in generate_form: {str(e)}")  # Log the error
         raise HTTPException(status_code=500, detail=str(e))
 
 
