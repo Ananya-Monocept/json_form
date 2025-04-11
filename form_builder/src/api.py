@@ -179,13 +179,8 @@ class FormBuilder:
         # In case expected_controls_count is 0 (not properly set), use a default minimum
         min_expected = max(1, self.expected_controls_count)
         
-        # Consider complete if we have sufficient structure AND either:
-        # 1. We've reached/exceeded the expected number, or
-        # 2. We've made reasonable progress (at least half of expected controls)
-        return has_sufficient_structure and (
-            total_controls >= min_expected or 
-            (min_expected > 2 and total_controls >= min_expected // 2)
-        )
+        # Consider complete ONLY if we have all expected controls or we've gone through multiple iterations
+        return has_sufficient_structure and total_controls >= min_expected
 
     def remove_duplicate_controls(self) -> Dict:
         """Remove duplicate controls that have the same label within the same section."""
@@ -726,7 +721,7 @@ def llm_node(state: WorkflowState) -> WorkflowState:
     failed_tools = state.get("failed_tools", 0)
 
     # Prevent infinite loops
-    if iteration_count >= 10:
+    if iteration_count >= 20:
         return {
             "messages": messages,
             "iteration_count": iteration_count,
