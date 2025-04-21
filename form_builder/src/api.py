@@ -217,7 +217,65 @@ class FormBuilder:
             return self.form.model_dump()
         except AttributeError:
             return self.form.dict()
-
+    
+    def load_form_data(self, form_data: Dict) -> Dict:
+        """Load existing form data into the form builder."""
+        try:
+            # Convert dictionary to IForm structure
+            if isinstance(form_data, dict):
+                # Handle class_ field which might be represented as "class" in JSON
+                if "class" in form_data and "class_" not in form_data:
+                    form_data["class_"] = form_data.pop("class")
+                
+                # Process form sections
+                if "formSections" in form_data:
+                    for section in form_data["formSections"]:
+                        # Handle class_ field in sections
+                        if "class" in section and "class_" not in section:
+                            section["class_"] = section.pop("class")
+                        
+                        # Process form controls in each section
+                        if "formControls" in section:
+                            for control in section["formControls"]:
+                                # Handle type_ field which might be represented as "type" in JSON
+                                if "type" in control and "type_" not in control:
+                                    control["type_"] = control.pop("type")
+                                # Handle class_ field in controls
+                                if "class" in control and "class_" not in control:
+                                    control["class_"] = control.pop("class")
+                
+                # Add default values for required fields if they're missing
+                default_values = {
+                    "value": None,
+                    "valid": None,
+                    "get": None,
+                    "saveBtnFunction": None,
+                    "calculateBtnTitle": None,
+                    "prevBtnTitle": None,
+                    "class_": None
+                }
+                
+                # Apply defaults only for missing fields
+                for key, default_value in default_values.items():
+                    if key not in form_data:
+                        form_data[key] = default_value
+                
+                # Create new form instance with the data
+                self.form = IForm(**form_data)
+                
+                # Count controls to set expectations
+                total_controls = sum(len(section.formControls) for section in self.form.formSections)
+                self.expected_controls_count = total_controls
+                self.current_form_id = form_data.get("id", None)
+                
+                return {
+                    "status": "success", 
+                    "message": f"Form loaded successfully with {total_controls} controls"
+                }
+            else:
+                return {"status": "error", "message": "Invalid form data format"}
+        except Exception as e:
+            return {"status": "error", "message": f"Error loading form data: {str(e)}"}
 
 # Initialize FormBuilder
 builder = FormBuilder()
@@ -417,6 +475,10 @@ async def detect_request_type(prompt: str) -> bool:
     if not has_existing_form:
         return False
     
+    # If JSON was loaded, it's definitely a modification
+    if builder.current_form_id is not None:
+        return True
+    
     # Common modification keywords
     modification_keywords = [
         "add", "change", "modify", "update", "delete", "remove", 
@@ -465,7 +527,6 @@ async def detect_request_type(prompt: str) -> bool:
         # Default to new form if classification fails
         return False
 
-
 # Define the workflow state type
 class WorkflowState(TypedDict, total=False):
     prompt: str
@@ -477,6 +538,7 @@ class WorkflowState(TypedDict, total=False):
     results: List[Dict[str, Any]]
     form: Any
     is_modification: bool
+    is_json_modification: bool  # New field
     successful_tools: int
     failed_tools: int
 
@@ -485,21 +547,30 @@ class WorkflowState(TypedDict, total=False):
 workflow = Graph()
 
 
+
 @workflow.add_node
 async def start_node(state: WorkflowState) -> WorkflowState:
     """Process the initial user input."""
     prompt = state["prompt"]
+    is_json_modification = state.get("is_json_modification", False)
     
-    # Use LLM to determine if this is a modification request or a new form request
-    is_modification = await detect_request_type(prompt)
-    
-    # If it's a new form request, reset the form builder
-    if not is_modification:
-        builder.reset_form()
-        # Dynamically extract sections and controls
-        extracted_data = extract_sections_and_controls(prompt)
+    # If it's not a JSON modification, use the existing logic
+    if not is_json_modification:
+        # Use LLM to determine if this is a modification request or a new form request
+        is_modification = await detect_request_type(prompt)
+        
+        # If it's a new form request, reset the form builder
+        if not is_modification:
+            builder.reset_form()
+            # Dynamically extract sections and controls
+            extracted_data = extract_sections_and_controls(prompt)
+        else:
+            # For modification requests, we don't reset and don't extract new form structure
+            extracted_data = []
     else:
-        # For modification requests, we don't reset and don't extract new form structure
+        # If it's a JSON modification request, we've already loaded the form
+        # Mark it as a modification request
+        is_modification = True
         extracted_data = []
 
     system_prompt = ""
@@ -529,15 +600,42 @@ async def start_node(state: WorkflowState) -> WorkflowState:
                 section_detail = f"Section {idx+1}: {section.get('sectionTitle')}\n"
                 section_detail += "\n".join([f"  - {control}" for control in controls_info])
                 sections_info.append(section_detail)
+            else:
+                # Show empty sections too
+                section_detail = f"Section {idx+1}: {section.get('sectionTitle')} (empty)"
+                sections_info.append(section_detail)
         
         form_details = "\n\n".join(sections_info)
         
+        source_info = "from JSON input" if is_json_modification else "from existing session"
+        
+        # Parse fields to add from the prompt for modification
+        fields_to_add = []
+        field_pattern = r"([\w\s]+)\s*\(([\w\s,]+)\)"
+        field_matches = re.findall(field_pattern, prompt, re.IGNORECASE)
+        
+        if field_matches:
+            # Extract target section from prompt
+            section_pattern = r"to\s+(?:the\s+)?(?:[\w\s]*\s+)?(?:section|tab)\s+['\"]?([\w\s]+)['\"]?"
+            section_match = re.search(section_pattern, prompt, re.IGNORECASE)
+            target_section = section_match.group(1) if section_match else None
+            
+            fields_info = ""
+            if target_section:
+                fields_info = f"Fields to add to section '{target_section}':\n"
+                for field_name, field_details in field_matches:
+                    fields_info += f"- {field_name.strip()} ({field_details.strip()})\n"
+        
         system_prompt = f"""
         You are a form modification assistant. Your task is to modify an existing form based on user requirements.
+        
+        The form was loaded {source_info}.
 
         Current form structure:
         Title: {current_form.get('formTitle')}
         {form_details}
+        
+        User's request: "{prompt}"
 
         IMPORTANT: You MUST respond with ONLY a JSON array of tool calls to make the requested modifications.
         Each tool call must be an object with "name" and "parameters" fields.
@@ -553,36 +651,29 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         When modifying controls:
         - For delete_control and update_control_validation, you can use either the control's name or label
         - For add_control, ensure the label doesn't already exist in that section
+        - Make sure to specify all required parameters for each tool call
+        - Be precise with section titles and control names/labels
 
         Example response format:
         [
             {{
-                "name": "add_section",
-                "parameters": {{"sectionTitle": "New Section"}}
+                "name": "add_control",
+                "parameters": {{
+                    "sectionTitle": "Address Information",
+                    "controlType": "text",
+                    "label": "Street Address",
+                    "required": true,
+                    "validation": {{}}
+                }}
             }},
             {{
                 "name": "add_control",
                 "parameters": {{
-                    "sectionTitle": "New Section",
+                    "sectionTitle": "Address Information",
                     "controlType": "text",
-                    "label": "New Field",
+                    "label": "City",
                     "required": true,
-                    "validation": {{"maxLength": 50}}
-                }}
-            }},
-            {{
-                "name": "delete_control",
-                "parameters": {{
-                    "sectionTitle": "Basic Information",
-                    "controlName": "old_field"
-                }}
-            }},
-            {{
-                "name": "update_control_validation",
-                "parameters": {{
-                    "sectionTitle": "Basic Information",
-                    "controlName": "email",
-                    "validation": {{"required": true, "pattern": "^[^@]+@[^@]+\\\.[^@]+$"}}
+                    "validation": {{}}
                 }}
             }}
         ]
@@ -591,7 +682,7 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         ONLY return the array of tool calls needed to implement the user's requested changes.
         """
     else:
-        # Prompt for creating a new form
+        # Keep the existing prompt for creating a new form
         system_prompt = f"""
         You are a form generation assistant. Your task is to create forms based on user requirements.
         You have access to these tools:
@@ -646,11 +737,13 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         "iteration_count": 0,
         "extracted_data": extracted_data,
         "is_modification": is_modification,
+        "is_json_modification": is_json_modification,
         "successful_tools": 0,
         "failed_tools": 0
     }
 
 
+# Improved tool calls extraction function
 def extract_tool_calls_from_message(content: str) -> List[Dict]:
     """Extract tool calls from LLM messages even when formatted poorly."""
     tool_calls = []
@@ -681,8 +774,9 @@ def extract_tool_calls_from_message(content: str) -> List[Dict]:
             # Single tool call as a dict
             if "name" in parsed_content and "parameters" in parsed_content:
                 return [parsed_content]
-    except:
-        pass
+    except Exception as e:
+        print(f"Initial JSON parsing failed: {e}")
+        # Continue to regex method
     
     # If that failed, try regex-based parsing for individual tool calls
     try:
@@ -702,12 +796,15 @@ def extract_tool_calls_from_message(content: str) -> List[Dict]:
                     "name": name,
                     "parameters": params
                 })
-            except:
+            except Exception as params_e:
+                print(f"Failed to parse parameters for {name}: {params_e}")
                 continue
-    except:
-        pass
+    except Exception as regex_e:
+        print(f"Regex extraction failed: {regex_e}")
     
     return tool_calls
+
+
 
 
 @workflow.add_node
@@ -815,14 +912,15 @@ def tool_node(state: WorkflowState) -> WorkflowState:
     successful_tools = state.get("successful_tools", 0)
     failed_tools = state.get("failed_tools", 0)
 
+    # Process all tool calls in this batch
     for tool_call in tool_calls:
         tool_name = tool_call["name"]
         if tool_name in tools:
             try:
+                print(f"Executing tool '{tool_name}' with parameters: {tool_call['parameters']}")
                 result = tools[tool_name]["func"](**tool_call["parameters"])
                 print(f"Executed tool '{tool_name}' with result: {result}")
                 
-                # Check if the operation was successful or just a warning
                 if "status" in result and result["status"] in ["success", "warning"]:
                     successful_tools += 1
                 
@@ -834,7 +932,6 @@ def tool_node(state: WorkflowState) -> WorkflowState:
             except Exception as e:
                 print(f"Error executing tool '{tool_name}': {e}")
                 failed_tools += 1
-                # Make error message more specific to help the LLM correct its approach
                 error_message = str(e)
                 if "sectionTitle" in str(e).lower():
                     error_message = f"Missing or invalid sectionTitle parameter. Available sections: {[s.sectionTitle for s in builder.form.formSections]}"
@@ -847,21 +944,19 @@ def tool_node(state: WorkflowState) -> WorkflowState:
                     "error": error_message
                 })
 
-    # Count current controls for debugging
     total_controls = sum(len(section.formControls) for section in builder.form.formSections)
     expected_controls = builder.expected_controls_count
     print(f"Progress: {total_controls}/{expected_controls} controls added")
     
-    # Form completion logic differs for new forms vs modifications
+    # MODIFIED LOGIC HERE - For modifications, only complete when we've run out of tool calls to process
+    # or reached iteration limit (giving LLM more time to add everything)
     if is_modification:
         # For modifications, we're done if:
-        # 1. We've processed at least one successful tool call and have no failures, or
-        # 2. We've reached the maximum number of iterations
-        form_complete = (successful_tools > 0 and failed_tools == 0) or iteration_count >= 5
+        # 1. We've processed all expected tool calls from the current LLM response, AND
+        #    (We've had at least one successful operation OR we've hit the iteration limit)
+        form_complete = (len(tool_calls) == 0 or iteration_count >= 5) and (successful_tools > 0 or iteration_count >= 5)
     else:
-        # For new forms:
-        # 1. Check if we have the expected structure via is_form_complete, AND
-        # 2. Either we've had successful tools in this iteration or we've reached iteration limit
+        # For new forms, keep the existing logic
         form_complete = builder.is_form_complete() and (successful_tools > 0 or iteration_count >= 5)
     
     print(f"Form complete: {form_complete} (Success: {successful_tools}, Failed: {failed_tools})")
@@ -871,7 +966,6 @@ def tool_node(state: WorkflowState) -> WorkflowState:
 
     # If all tools failed, provide clearer guidance
     if failed_tools > 0 and successful_tools == 0:
-        # Generate helpful context for the LLM
         available_sections = [s.sectionTitle for s in builder.form.formSections]
         controls_by_section = {}
         for section in builder.form.formSections:
@@ -888,6 +982,8 @@ All tool calls failed. Please correct your approach:
 3. For delete_control and update_control_validation, you can use either the control's name or label
 4. For add_control, ensure the label doesn't already exist in that section
 5. For update_control_validation, provide complete validation rules
+
+Try again with EXACT section names and proper parameters.
 """
         }
         messages.append(context_message)
@@ -906,7 +1002,6 @@ All tool calls failed. Please correct your approach:
         "successful_tools": successful_tools,
         "failed_tools": failed_tools
     }
-
 
 @workflow.add_node
 def end_node(state: WorkflowState) -> WorkflowState:
@@ -961,28 +1056,77 @@ workflow.add_edge("end_node", END)
 app_workflow = workflow.compile()
 
 
+
+# Now, add a new endpoint to the FastAPI app to accept JSON form data
+@app.post("/load-json-form")
+async def load_json_form(form_data: Dict) -> Dict:
+    """Load a form from JSON data."""
+    try:
+        result = builder.load_form_data(form_data)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "Error loading form data"))
+        return {
+            "status": "success",
+            "result": result,
+            "form": builder.get_current_form()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # API Endpoints
 class FormRequestModel(BaseModel):
     prompt: str
+
+class FormModificationRequest(BaseModel):
+    prompt: str
+    form_json: Optional[Dict] = None
     
 
+
 @app.post("/generate-form")
-async def generate_form(request: FormRequestModel) -> Dict:
-    """Generate or modify a form based on the user's prompt."""
+async def generate_form(request: Union[FormRequestModel, FormModificationRequest]) -> Dict:
+    """Generate or modify a form based on the user's prompt and optional JSON input."""
     try:
-        # Let the workflow handle the determination of request type
-        config = RunnableConfig(recursion_limit=50)
+        # Check if we have form_json in the request
+        form_json = getattr(request, "form_json", None)
+        
+        # If form JSON is provided, load it first
+        if form_json:
+            load_result = builder.load_form_data(form_json)
+            if load_result.get("status") == "error":
+                return {
+                    "status": "error", 
+                    "message": load_result.get("message", "Error loading form data")
+                }
+            
+            # Mark this as a modification request
+            is_json_modification = True
+            print(f"Loaded form data with result: {load_result}")
+            print(f"Current form structure: {builder.get_current_form()}")
+        else:
+            is_json_modification = False
         
         # Execute the workflow with the config
-        result = await app_workflow.ainvoke({"prompt": request.prompt}, config=config)
+        config = RunnableConfig(recursion_limit=50)
+        
+        # Pass additional context to the workflow
+        result = await app_workflow.ainvoke({
+            "prompt": request.prompt,
+            "is_json_modification": is_json_modification
+        }, config=config)
         
         # Always return the current state of the form from the builder
         current_form = builder.get_current_form()
         
         # Add metadata about the request type
+        request_type = "json_modification" if is_json_modification else (
+            "modification" if result.get("is_modification", False) else "new_form"
+        )
+        
         return {
             "form": current_form,
-            "request_type": "modification" if result.get("is_modification", False) else "new_form",
+            "request_type": request_type,
             "successful_operations": result.get("successful_tools", 0),
             "failed_operations": result.get("failed_tools", 0),
             "deduplication": result.get("deduplication", {})
