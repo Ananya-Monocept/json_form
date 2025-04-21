@@ -1093,8 +1093,6 @@ async def set_title(title: str) -> Dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/get-form")
 async def get_form() -> Dict:
     """Get the current form state."""
@@ -1102,8 +1100,6 @@ async def get_form() -> Dict:
         return builder.get_current_form()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.post("/reset-form")
 async def reset_form() -> Dict:
     """Reset the form to initial state."""
@@ -1112,8 +1108,6 @@ async def reset_form() -> Dict:
         return {"status": "success", "message": "Form reset to initial state"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.post("/remove-duplicates")
 async def remove_duplicates() -> Dict:
     """Remove duplicate controls from the form."""
@@ -1126,8 +1120,6 @@ async def remove_duplicates() -> Dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
