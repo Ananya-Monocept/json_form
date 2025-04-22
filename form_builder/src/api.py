@@ -41,32 +41,104 @@ from copy import deepcopy
 def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Transform the JSON structure to match the Pydantic models without modifying the models.
+    This function now supports multiple JSON structures:
+    1. Existing structure (`formSections` directly under root).
+    2. New structure nested under `data → jsonFormData`.
+    3. Structure with `form → sections → fields`.
     """
     # Make a deep copy to avoid modifying the original
     transformed_data = {}
-    
-    # Extract the nested jsonFormData which contains the actual form definition
+
     try:
+        # Extract the nested jsonFormData or the new "form" structure
         form_data = json_data.get('data', {}).get('data', {}).get('jsonFormData', {})
         if not form_data:
-            raise ValueError("Could not find jsonFormData in the provided JSON")
-        
+            # Try extracting from `data → formData → jsonFormData`
+            form_data = json_data.get("data", {}).get("jsonFormData", {})
+            if not form_data:
+                # Try extracting the new "form" structure
+                form_data = json_data.get("form", {})
+                if not form_data:
+                    raise ValueError("Could not find valid form data in the provided JSON")
+
         # Copy the form_data to our transformed data
         transformed_data = deepcopy(form_data)
-        
-        # Rename fields to match Pydantic model expectations
-        # Handle class -> class_ transformation
+
+        # Handle the new "sections" structure (if present)
+        if "sections" in transformed_data:
+            # Map "sections" to "formSections"
+            transformed_data["formSections"] = []
+            for section in transformed_data.pop("sections", []):
+                transformed_section = {
+                    "sectionTitle": section.get("sectionName", "Untitled Section"),
+                    "sectionId": section.get("sectionId", None),
+                    "visibleLabel": True,
+                    "visible": True,
+                    "class_": None,
+                    "formControls": []
+                }
+
+                # Map "fields" to "formControls"
+                for field in section.get("fields", []):
+                    transformed_field = {
+                        "name": field.get("fieldId", f"control_{len(transformed_section['formControls'])}"),
+                        "label": field.get("label", field.get("fieldName", "Untitled Control")),
+                        "visibleLabel": True,
+                        "type_": field.get("type", "text"),
+                        "validators": [],
+                        "visibilityRules": field.get("visibilityRules", None)
+                    }
+
+                    # Process validators
+                    for validator in field.get("validators", []):
+                        transformed_validator = {}
+                        if validator.get("type") == "required":
+                            transformed_validator["validatorName"] = "required"
+                            transformed_validator["required"] = True
+                            transformed_validator["message"] = validator.get("message", "This field is required.")
+                        elif validator.get("type") == "pattern":
+                            transformed_validator["validatorName"] = "pattern"
+                            transformed_validator["pattern"] = validator.get("value", "")
+                            transformed_validator["message"] = validator.get("message", "Invalid format.")
+                        if transformed_validator:
+                            transformed_field["validators"].append(transformed_validator)
+
+                    # Add options if present
+                    if "options" in field:
+                        transformed_field["options"] = [
+                            {"value": option.get("value"), "label": option.get("label")}
+                            for option in field["options"]
+                        ]
+
+                    transformed_section["formControls"].append(transformed_field)
+
+                transformed_data["formSections"].append(transformed_section)
+
+        # Handle the existing "formSections" structure
+        if "formSections" in transformed_data:
+            for section in transformed_data["formSections"]:
+                # Rename 'class' to 'class_' if needed
+                if "class" in section and "class_" not in section:
+                    section["class_"] = section.pop("class")
+
+                # Process controls in this section
+                for control in section.get("formControls", []):
+                    if "class" in control and "class_" not in control:
+                        control["class_"] = control.pop("class")
+
+                    # Standardize validators
+                    for validator in control.get("validators", []):
+                        if "minlength" in validator:
+                            validator["minLength"] = validator.pop("minlength")
+                        if "maxlength" in validator:
+                            validator["maxLength"] = validator.pop("maxlength")
+
+        # Apply additional transformations
         _transform_class_fields(transformed_data)
-        
-        # Handle type -> type_ transformation
         _transform_type_fields(transformed_data)
-        
-        # Handle validators field transformations (minlength -> minLength, etc.)
         _transform_validators(transformed_data)
-        
-        # Handle options field transformations
         _transform_options(transformed_data)
-        
+
         return transformed_data
     except Exception as e:
         raise ValueError(f"Error transforming JSON: {str(e)}")
@@ -97,7 +169,6 @@ def _transform_type_fields(data: Dict[str, Any]) -> None:
             if isinstance(item, (dict, list)):
                 _transform_type_fields(item)
 
-
 def _transform_validators(data: Dict[str, Any]) -> None:
     """Transform validator fields to match Pydantic model expectations."""
     if isinstance(data, dict):
@@ -107,7 +178,6 @@ def _transform_validators(data: Dict[str, Any]) -> None:
                     validator['minLength'] = validator.pop('minlength')
                 if 'maxlength' in validator:
                     validator['maxLength'] = validator.pop('maxlength')
-        
         for key, value in list(data.items()):
             if isinstance(value, (dict, list)):
                 _transform_validators(value)
@@ -124,7 +194,6 @@ def _transform_options(data: Dict[str, Any]) -> None:
                 if isinstance(option, dict) and 'dependentControls' in option:
                     if isinstance(option['dependentControls'], list) and all(isinstance(item, dict) for item in option['dependentControls']):
                         option['dependentControls'] = option['dependentControls']
-        
         for key, value in list(data.items()):
             if isinstance(value, (dict, list)):
                 _transform_options(value)
@@ -132,7 +201,6 @@ def _transform_options(data: Dict[str, Any]) -> None:
         for item in data:
             if isinstance(item, (dict, list)):
                 _transform_options(item)
-
 
 
 class FormBuilder:
@@ -409,7 +477,9 @@ def get_form_templates_list() -> List[str]:
     
     templates = []
     if templates_dir.exists():
+        # Update to include both .json and .txt files
         templates = [f.name for f in templates_dir.glob("*.json")]
+        templates.extend([f.name for f in templates_dir.glob("*.txt")])
     return templates
 
 def load_form_template(template_name: str) -> Dict:
@@ -418,17 +488,37 @@ def load_form_template(template_name: str) -> Dict:
     if not templates_dir.exists():
         templates_dir = Path("form_templates")  # Fallback path
     
-    # Ensure template has .json extension
-    if not template_name.endswith('.json'):
-        template_name = f"{template_name}.json"
-    
-    template_path = templates_dir / template_name
-    
-    if not template_path.exists():
-        raise FileNotFoundError(f"Template '{template_name}' not found")
+    # Check if the template_name already has an extension
+    if not template_name.endswith(('.json', '.txt')):
+        # Try with .json extension first
+        json_path = templates_dir / f"{template_name}.json"
+        txt_path = templates_dir / f"{template_name}.txt"
+        
+        if json_path.exists():
+            template_path = json_path
+        elif txt_path.exists():
+            template_path = txt_path
+        else:
+            raise FileNotFoundError(f"Template '{template_name}' not found with either .json or .txt extension")
+    else:
+        # Template name already has an extension
+        template_path = templates_dir / template_name
+        
+        if not template_path.exists():
+            raise FileNotFoundError(f"Template '{template_name}' not found")
     
     with open(template_path, "r") as f:
-        template_data = json.load(f)
+        content = f.read()
+        
+        # Check if it's a .txt file and try to parse JSON from it
+        if template_path.suffix.lower() == '.txt':
+            try:
+                template_data = json.loads(content)
+            except json.JSONDecodeError:
+                raise ValueError(f"The .txt file '{template_name}' does not contain valid JSON data")
+        else:
+            # For .json files, load directly
+            template_data = json.loads(content)
     
     return template_data
 
@@ -1492,19 +1582,23 @@ async def save_template(template_name: str) -> Dict:
         if not templates_dir.exists():
             templates_dir.mkdir(parents=True, exist_ok=True)
         
-        # Ensure template has .json extension
-        if not template_name.endswith('.json'):
-            template_name = f"{template_name}.json"
+        # Preserve the extension if provided, otherwise default to .json
+        if not template_name.endswith(('.json', '.txt')):
+            template_name = f"{template_name}.json"  # Default to JSON
             
         template_path = templates_dir / template_name
         
         # Get current form data
         form_data = builder.get_current_form()
         
-        # Save to file without validation since builder.get_current_form()
-        # should already return valid data
+        # Save to file - format based on extension
         with open(template_path, "w") as f:
-            json.dump(form_data, f, indent=2)
+            if template_name.endswith('.json'):
+                json.dump(form_data, f, indent=2)
+            else:  # .txt file
+                # Still save as JSON format but in a .txt file
+                json_content = json.dumps(form_data, indent=2)
+                f.write(json_content)
             
         return {
             "status": "success",
@@ -1513,7 +1607,7 @@ async def save_template(template_name: str) -> Dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
