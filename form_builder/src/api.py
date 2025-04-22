@@ -2,9 +2,10 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional, TypedDict, Union
 from dotenv import load_dotenv
-from ollama import Client as OllamaClient
+import google.generativeai as genai
 import json
 import re
+import os
 from pathlib import Path
 from langgraph.graph import START, END, Graph
 from form_models import IForm, IFormSections, IFormControl, IValidator
@@ -24,19 +25,15 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
-# Define a fallback model
-DEFAULT_MODEL = "llama3.2:3b-instruct-q8_0"
 
-# Initialize Ollama client
-ollama_client = OllamaClient()
+
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+model = genai.GenerativeModel(os.getenv('GEMINI_MODEL', 'gemini-1.5-flash'))
 
 class TemplateRequestModel(BaseModel):
     prompt: str
     template_name: str
 
-import json
-from typing import Dict, Any, List
-from copy import deepcopy
 
 def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -703,71 +700,52 @@ def extract_sections_and_controls(prompt: str) -> List[Dict]:
 
 
 async def detect_request_type(prompt: str) -> bool:
-    """
-    Use the LLM to determine if the user wants to modify an existing form or create a new one.
-    Returns True if it's a modification request, False if it's a new form request.
-    """
-    # First check if the form already has content
+    """Use Gemini to determine if the user wants to modify an existing form or create a new one."""
     current_form = builder.get_current_form()
     has_existing_form = (
         len(current_form.get("formSections", [])) > 0 and
         any(len(section.get("formControls", [])) > 0 for section in current_form.get("formSections", []))
     )
     
-    # If there's no existing form, it can't be a modification
     if not has_existing_form:
         return False
     
-    # If JSON was loaded, it's definitely a modification
     if builder.current_form_id is not None:
         return True
     
-    # Common modification keywords
     modification_keywords = [
         "add", "change", "modify", "update", "delete", "remove", 
         "edit", "alter", "adjust", "revise", "include", "append"
     ]
     
-    # Check for modification keywords in the prompt
     for keyword in modification_keywords:
         if re.search(r'\b' + keyword + r'\b', prompt, re.IGNORECASE):
             return True
     
-    # If still unsure, use the LLM to classify
-    system_prompt = """
-    You are a request classifier for a form builder application. 
-    Your task is to determine whether the user's request is:
-    
-    1. Creating a NEW form from scratch, or
-    2. MODIFYING an existing form
-    
-    Examine the request and respond with ONLY "NEW" or "MODIFY".
-    """
-    
-    # Prepare the prompt for the LLM
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": prompt}
-    ]
-    
-    request = {
-        "model": DEFAULT_MODEL,
-        "messages": messages,
-        "format": "json",
-        "options": {"temperature": 0.1}
-    }
-    
     try:
-        response = ollama_client.chat(**request)
-        result = response["message"]["content"].strip().upper()
+        system_prompt = """
+        You are a request classifier for a form builder application. 
+        Your task is to determine whether the user's request is:
         
-        # Check if response contains "MODIFY"
+        1. Creating a NEW form from scratch, or
+        2. MODIFYING an existing form
+        
+        Examine the request and respond with ONLY "NEW" or "MODIFY".
+        """
+        
+        # Create chat and get response
+        chat = model.start_chat()
+        response = chat.send_message(
+            f"{system_prompt}\n\nUser request: {prompt}",
+            generation_config={"temperature": 0.1}
+        )
+        
+        result = response.text.strip().upper()
         is_modification = "MODIFY" in result
         print(f"Request classification: {'MODIFY' if is_modification else 'NEW'}")
         return is_modification
     except Exception as e:
         print(f"Error classifying request: {e}")
-        # Default to new form if classification fails
         return False
 
 # Define the workflow state type
@@ -1048,8 +1026,6 @@ def extract_tool_calls_from_message(content: str) -> List[Dict]:
     return tool_calls
 
 
-
-
 @workflow.add_node
 def llm_node(state: WorkflowState) -> WorkflowState:
     """Call the LLM to determine actions."""
@@ -1072,49 +1048,70 @@ def llm_node(state: WorkflowState) -> WorkflowState:
             "failed_tools": failed_tools
         }
 
-    # Prepare the prompt for the LLM
-    prompt = {
-        "model": DEFAULT_MODEL,
-        "messages": messages,
-        "format": "json",
-        "options": {"temperature": 0.5}
-    }
-
-    # Get response from Ollama
     try:
-        response = ollama_client.chat(**prompt)
-        message = response["message"]
-        content = message["content"]
-        print(f"LLM Response: {content}")
+        # Convert messages to Gemini format
+        gemini_messages = []
+        for msg in messages:
+            role = msg["role"]
+            # Map roles to Gemini format
+            if role == "system":
+                # Prepend system message to user message
+                gemini_messages.append({
+                    "role": "user",
+                    "parts": [{"text": "[System Instructions]\n" + msg["content"]}]
+                })
+            elif role == "user":
+                gemini_messages.append({
+                    "role": "user",
+                    "parts": [{"text": msg["content"]}]
+                })
+            elif role == "assistant":
+                gemini_messages.append({
+                    "role": "model",
+                    "parts": [{"text": msg["content"]}]
+                })
+            elif role == "tool":
+                # Convert tool results to user message
+                gemini_messages.append({
+                    "role": "user",
+                    "parts": [{"text": "[Tool Results]\n" + msg["content"]}]
+                })
+
+        # Create chat session
+        chat = model.start_chat(history=gemini_messages)
         
-        # Try to parse tool calls from the response using our improved extractor
+        # Generate response
+        response = chat.send_message(
+            messages[-1]["content"],
+            generation_config={"temperature": 0.5}
+        )
+        
+        content = response.text
+        print(f"Gemini Response: {content}")
+        
+        # Process the response the same way as before
         tool_calls = extract_tool_calls_from_message(content)
-        
         print(f"Initial Parsed Tool Calls: {tool_calls}")
         
         # Validate extracted tool calls
         valid_tool_calls = []
-        seen_operations = set()  # Track operations to avoid duplicates
+        seen_operations = set()
         
         for call in tool_calls:
             if isinstance(call, dict) and "name" in call and "parameters" in call:
                 if call["name"] in tools:
-                    # Create an operation signature to detect duplicates
-                    # For add_control, use section+label as the signature
+                    # Create operation signature to detect duplicates
                     if call["name"] == "add_control":
                         section = call["parameters"].get("sectionTitle", "")
                         label = call["parameters"].get("label", "")
                         op_signature = f"add_control:{section}:{label}"
                     elif call["name"] in ["delete_control", "update_control_validation"]:
-                        # For these operations, use section+control name/label as signature
                         section = call["parameters"].get("sectionTitle", "")
                         control = call["parameters"].get("controlName", "")
                         op_signature = f"{call['name']}:{section}:{control}"
                     else:
-                        # For other operations, use all parameters as signature
                         op_signature = f"{call['name']}:{json.dumps(call['parameters'])}"
                     
-                    # Only add if we haven't seen this exact operation before
                     if op_signature not in seen_operations:
                         valid_tool_calls.append(call)
                         seen_operations.add(op_signature)
@@ -1122,15 +1119,13 @@ def llm_node(state: WorkflowState) -> WorkflowState:
         tool_calls = valid_tool_calls
         print(f"Validated Tool Calls: {tool_calls}")
         
-        # For modifications, check if we have valid tool calls
         if is_modification:
             form_complete = (len(valid_tool_calls) == 0 and iteration_count > 1) or iteration_count >= 5
         else: 
-            # For new forms, check if we have all expected controls
             form_complete = builder.is_form_complete()
 
         return {
-            "messages": messages + [message],
+            "messages": messages + [{"role": "assistant", "content": content}],
             "tool_calls": valid_tool_calls, 
             "iteration_count": iteration_count + 1,
             "form_complete": form_complete,
@@ -1140,9 +1135,8 @@ def llm_node(state: WorkflowState) -> WorkflowState:
             "failed_tools": failed_tools
         }
     except Exception as e:
-        print(f"Error calling LLM: {e}")
+        print(f"Error calling Gemini: {e}")
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
-
 
 @workflow.add_node
 def tool_node(state: WorkflowState) -> WorkflowState:
