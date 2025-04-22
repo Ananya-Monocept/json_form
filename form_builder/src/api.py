@@ -35,6 +35,23 @@ class TemplateRequestModel(BaseModel):
     template_name: str
 
 
+def clean_null_values(data):
+        """Recursively remove all null values from dictionaries and lists."""
+        if isinstance(data, dict):
+            return {
+                key: clean_null_values(value)
+                for key, value in data.items()
+                if value is not None and clean_null_values(value) not in (None, {}, [])
+            }
+        elif isinstance(data, list):
+            return [
+                clean_null_values(item)
+                for item in data
+                if item is not None and clean_null_values(item) not in (None, {}, [])
+            ]
+        return data
+
+
 def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Transform the JSON structure to match the Pydantic models without modifying the models.
@@ -383,12 +400,15 @@ class FormBuilder:
             "duplicates_removed": duplicates_removed
         }
 
+    # Update the get_current_form method in FormBuilder class
     def get_current_form(self) -> Dict:
-        """Return the current form state"""
+        """Return the current form state with null values removed."""
         try:
-            return self.form.model_dump()
+            form_data = self.form.model_dump()
+            return clean_null_values(form_data)
         except AttributeError:
-            return self.form.dict()
+            form_data = self.form.dict()
+            return clean_null_values(form_data)
     
     def load_form_data(self, form_data: Dict) -> Dict:
         """Load existing form data into the form builder."""
