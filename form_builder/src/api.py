@@ -5,10 +5,13 @@ from dotenv import load_dotenv
 from ollama import Client as OllamaClient
 import json
 import re
+from pathlib import Path
 from langgraph.graph import START, END, Graph
 from form_models import IForm, IFormSections, IFormControl, IValidator
 from langchain_core.runnables.config import RunnableConfig
 from fastapi.middleware.cors import CORSMiddleware
+import traceback
+from copy import deepcopy
 # Load environment variables
 load_dotenv()
 
@@ -26,6 +29,110 @@ DEFAULT_MODEL = "llama3.2:3b-instruct-q8_0"
 
 # Initialize Ollama client
 ollama_client = OllamaClient()
+
+class TemplateRequestModel(BaseModel):
+    prompt: str
+    template_name: str
+
+import json
+from typing import Dict, Any, List
+from copy import deepcopy
+
+def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transform the JSON structure to match the Pydantic models without modifying the models.
+    """
+    # Make a deep copy to avoid modifying the original
+    transformed_data = {}
+    
+    # Extract the nested jsonFormData which contains the actual form definition
+    try:
+        form_data = json_data.get('data', {}).get('data', {}).get('jsonFormData', {})
+        if not form_data:
+            raise ValueError("Could not find jsonFormData in the provided JSON")
+        
+        # Copy the form_data to our transformed data
+        transformed_data = deepcopy(form_data)
+        
+        # Rename fields to match Pydantic model expectations
+        # Handle class -> class_ transformation
+        _transform_class_fields(transformed_data)
+        
+        # Handle type -> type_ transformation
+        _transform_type_fields(transformed_data)
+        
+        # Handle validators field transformations (minlength -> minLength, etc.)
+        _transform_validators(transformed_data)
+        
+        # Handle options field transformations
+        _transform_options(transformed_data)
+        
+        return transformed_data
+    except Exception as e:
+        raise ValueError(f"Error transforming JSON: {str(e)}")
+
+def _transform_class_fields(data: Dict[str, Any]) -> None:
+    """Transform 'class' fields to 'class_' for Pydantic compatibility."""
+    if isinstance(data, dict):
+        if 'class' in data:
+            data['class_'] = data.pop('class')
+        for key, value in list(data.items()):
+            if isinstance(value, (dict, list)):
+                _transform_class_fields(value)
+    if isinstance(data, list):  # Changed from elif to if
+        for item in data:
+            if isinstance(item, (dict, list)):
+                _transform_class_fields(item)
+
+def _transform_type_fields(data: Dict[str, Any]) -> None:
+    """Transform 'type' fields to 'type_' for Pydantic compatibility."""
+    if isinstance(data, dict):
+        if 'type' in data:
+            data['type_'] = data.pop('type')
+        for key, value in list(data.items()):
+            if isinstance(value, (dict, list)):
+                _transform_type_fields(value)
+    if isinstance(data, list):  # Changed from elif to if
+        for item in data:
+            if isinstance(item, (dict, list)):
+                _transform_type_fields(item)
+
+
+def _transform_validators(data: Dict[str, Any]) -> None:
+    """Transform validator fields to match Pydantic model expectations."""
+    if isinstance(data, dict):
+        if 'validators' in data and isinstance(data['validators'], list):
+            for validator in data['validators']:
+                if 'minlength' in validator:
+                    validator['minLength'] = validator.pop('minlength')
+                if 'maxlength' in validator:
+                    validator['maxLength'] = validator.pop('maxlength')
+        
+        for key, value in list(data.items()):
+            if isinstance(value, (dict, list)):
+                _transform_validators(value)
+    if isinstance(data, list):  # Changed from elif to if
+        for item in data:
+            if isinstance(item, (dict, list)):
+                _transform_validators(item)
+
+def _transform_options(data: Dict[str, Any]) -> None:
+    """Transform options fields to match Pydantic model expectations."""
+    if isinstance(data, dict):
+        if 'options' in data and isinstance(data['options'], list):
+            for option in data['options']:
+                if isinstance(option, dict) and 'dependentControls' in option:
+                    if isinstance(option['dependentControls'], list) and all(isinstance(item, dict) for item in option['dependentControls']):
+                        option['dependentControls'] = option['dependentControls']
+        
+        for key, value in list(data.items()):
+            if isinstance(value, (dict, list)):
+                _transform_options(value)
+    if isinstance(data, list):  # Changed from elif to if
+        for item in data:
+            if isinstance(item, (dict, list)):
+                _transform_options(item)
+
 
 
 class FormBuilder:
@@ -221,64 +328,110 @@ class FormBuilder:
     def load_form_data(self, form_data: Dict) -> Dict:
         """Load existing form data into the form builder."""
         try:
-            # Convert dictionary to IForm structure
-            if isinstance(form_data, dict):
-                # Handle class_ field which might be represented as "class" in JSON
-                if "class" in form_data and "class_" not in form_data:
-                    form_data["class_"] = form_data.pop("class")
-                
-                # Process form sections
-                if "formSections" in form_data:
-                    for section in form_data["formSections"]:
-                        # Handle class_ field in sections
-                        if "class" in section and "class_" not in section:
-                            section["class_"] = section.pop("class")
-                        
-                        # Process form controls in each section
-                        if "formControls" in section:
-                            for control in section["formControls"]:
-                                # Handle type_ field which might be represented as "type" in JSON
-                                if "type" in control and "type_" not in control:
-                                    control["type_"] = control.pop("type")
-                                # Handle class_ field in controls
-                                if "class" in control and "class_" not in control:
-                                    control["class_"] = control.pop("class")
-                
-                # Add default values for required fields if they're missing
-                default_values = {
-                    "value": None,
-                    "valid": None,
-                    "get": None,
-                    "saveBtnFunction": None,
-                    "calculateBtnTitle": None,
-                    "prevBtnTitle": None,
-                    "class_": None
-                }
-                
-                # Apply defaults only for missing fields
-                for key, default_value in default_values.items():
-                    if key not in form_data:
-                        form_data[key] = default_value
-                
-                # Create new form instance with the data
-                self.form = IForm(**form_data)
-                
-                # Count controls to set expectations
-                total_controls = sum(len(section.formControls) for section in self.form.formSections)
-                self.expected_controls_count = total_controls
-                self.current_form_id = form_data.get("id", None)
-                
-                return {
-                    "status": "success", 
-                    "message": f"Form loaded successfully with {total_controls} controls"
-                }
-            else:
-                return {"status": "error", "message": "Invalid form data format"}
-        except Exception as e:
-            return {"status": "error", "message": f"Error loading form data: {str(e)}"}
+            # Step 1: Transform the JSON data to match Pydantic models
+            transformed_data = transform_json_for_pydantic(form_data)
 
+            # Step 2: Process the transformed data
+            processed_data = {
+                "value": None,
+                "valid": None,
+                "get": None,
+                "formTitle": "Untitled Form",
+                "saveBtnTitle": "Save",
+                "resetBtnTitle": "Reset",
+                "calculateBtnTitle": None,
+                "prevBtnTitle": None,
+                "themeFile": "default_theme.json",
+                "formSections": [],
+                "class_": None,
+                "saveBtnFunction": None
+            }
+
+            # Update with the transformed values
+            for key, value in transformed_data.items():
+                if key == "formSections":
+                    processed_sections = []
+                    for section in value:
+                        # Ensure section has required fields
+                        section_data = {
+                            "sectionTitle": section.get("sectionTitle", "Untitled Section"),
+                            "visible": section.get("visible", True),
+                            "apiEndpoint": section.get("apiEndpoint", None),
+                            "controlTypeName": section.get("controlTypeName", None),
+                            "method": section.get("method", None),
+                            "isVisible": section.get("isVisible", True),
+                            "formControls": [],
+                            "visibleLabel": section.get("visibleLabel", True),
+                            "sectionButton": section.get("sectionButton", None),
+                            "class_": section.get("class_", None),
+                            "toolTipText": section.get("toolTipText", None),
+                            "urlDependentControls": section.get("urlDependentControls", None),
+                            "urlPath": section.get("urlPath", None),
+                            "productFeaturesUrl": section.get("productFeaturesUrl", None)
+                        }
+                        # Process controls in this section
+                        if "formControls" in section and isinstance(section["formControls"], list):
+                            for control in section["formControls"]:
+                                control_data = {
+                                    "name": control.get("name", f"control_{len(section_data['formControls'])}"),
+                                    "label": control.get("label", "Untitled Control"),
+                                    "visibleLabel": control.get("visibleLabel", True),
+                                    "type_": control.get("type_", "text"),
+                                    "validators": control.get("validators", None)
+                                }
+                                section_data["formControls"].append(IFormControl(**control_data))
+                        processed_sections.append(IFormSections(**section_data))
+                    processed_data["formSections"] = processed_sections
+                else:
+                    processed_data[key] = value
+
+            # Create new form instance with the processed data
+            self.form = IForm(**processed_data)
+            total_controls = sum(len(section.formControls) for section in self.form.formSections)
+            self.expected_controls_count = total_controls
+            self.current_form_id = processed_data.get("id", None)
+            return {
+                "status": "success", 
+                "message": f"Form loaded successfully with {total_controls} controls"
+            }
+        except Exception as e:
+            print(f"Exception in load_form_data: {str(e)}")
+            traceback.print_exc()
+            return {"status": "error", "message": f"Error loading form data: {str(e)}"}
 # Initialize FormBuilder
 builder = FormBuilder()
+
+def get_form_templates_list() -> List[str]:
+    """Get a list of available form template filenames."""
+    templates_dir = Path("src/form_builder/form_templates")
+    if not templates_dir.exists():
+        templates_dir = Path("form_templates")  # Fallback path
+    
+    templates = []
+    if templates_dir.exists():
+        templates = [f.name for f in templates_dir.glob("*.json")]
+    return templates
+
+def load_form_template(template_name: str) -> Dict:
+    """Load a form template from the form_templates directory."""
+    templates_dir = Path("src/form_builder/form_templates")
+    if not templates_dir.exists():
+        templates_dir = Path("form_templates")  # Fallback path
+    
+    # Ensure template has .json extension
+    if not template_name.endswith('.json'):
+        template_name = f"{template_name}.json"
+    
+    template_path = templates_dir / template_name
+    
+    if not template_path.exists():
+        raise FileNotFoundError(f"Template '{template_name}' not found")
+    
+    with open(template_path, "r") as f:
+        template_data = json.load(f)
+    
+    return template_data
+
 
 # Define tools for the agent
 tools = {
@@ -1072,8 +1225,7 @@ async def load_json_form(form_data: Dict) -> Dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
+    
 # API Endpoints
 class FormRequestModel(BaseModel):
     prompt: str
@@ -1085,14 +1237,39 @@ class FormModificationRequest(BaseModel):
 
 
 @app.post("/generate-form")
-async def generate_form(request: Union[FormRequestModel, FormModificationRequest]) -> Dict:
-    """Generate or modify a form based on the user's prompt and optional JSON input."""
+async def generate_form(request: Union[FormRequestModel, FormModificationRequest, TemplateRequestModel]) -> Dict:
+    """Generate or modify a form based on the user's prompt, optional JSON input, or template."""
     try:
-        # Check if we have form_json in the request
+        # Check what type of request we're handling
         form_json = getattr(request, "form_json", None)
+        template_name = getattr(request, "template_name", None)
         
-        # If form JSON is provided, load it first
-        if form_json:
+        # If template name is provided, load it first
+        if template_name:
+            try:
+                template_data = load_form_template(template_name)
+                
+                # Skip validation - let the builder handle it
+                load_result = builder.load_form_data(template_data)
+                if load_result.get("status") == "error":
+                    return {
+                        "status": "error", 
+                        "message": load_result.get("message", "Error loading template")
+                    }
+                
+                # Mark this as a template modification request
+                is_json_modification = True
+                print(f"Loaded template '{template_name}' with result: {load_result}")
+                print(f"Current form structure: {builder.get_current_form()}")
+                
+            except FileNotFoundError:
+                return {
+                    "status": "error",
+                    "message": f"Template '{template_name}' not found"
+                }
+        # If form JSON is provided, handle as before
+        elif form_json:
+            # Skip validation - let the builder handle it
             load_result = builder.load_form_data(form_json)
             if load_result.get("status") == "error":
                 return {
@@ -1120,21 +1297,25 @@ async def generate_form(request: Union[FormRequestModel, FormModificationRequest
         current_form = builder.get_current_form()
         
         # Add metadata about the request type
-        request_type = "json_modification" if is_json_modification else (
-            "modification" if result.get("is_modification", False) else "new_form"
+        request_type = "template_modification" if template_name else (
+            "json_modification" if form_json else (
+                "modification" if result.get("is_modification", False) else "new_form"
+            )
         )
         
         return {
             "form": current_form,
             "request_type": request_type,
+            "template": template_name if template_name else None,
             "successful_operations": result.get("successful_tools", 0),
             "failed_operations": result.get("failed_tools", 0),
             "deduplication": result.get("deduplication", {})
         }
     except Exception as e:
         print(f"Error in generate_form: {str(e)}")  # Log the error
+        traceback.print_exc()  # Print full traceback for debugging
         raise HTTPException(status_code=500, detail=str(e))
-
+    
 
 @app.post("/add-section")
 async def add_section(title: str) -> Dict:
@@ -1264,6 +1445,75 @@ async def remove_duplicates() -> Dict:
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/form-templates")
+async def get_templates() -> Dict:
+    """Get list of available form templates."""
+    try:
+        templates = get_form_templates_list()
+        return {
+            "status": "success",
+            "templates": templates
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/load-template")
+async def load_template(template_name: str) -> Dict:
+    """Load a form template by name."""
+    try:
+        template_data = load_form_template(template_name)
+        # Simply pass the template data to the builder without validation
+        # The builder should handle validation itself
+        result = builder.load_form_data(template_data)
+        
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "Error loading template"))
+        
+        return {
+            "status": "success", 
+            "template": template_name,
+            "result": result,
+            "form": builder.get_current_form()
+        }
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/save-template")
+async def save_template(template_name: str) -> Dict:
+    """Save the current form as a template."""
+    try:
+        templates_dir = Path("src/form_builder/form_templates")
+        if not templates_dir.exists():
+            templates_dir = Path("form_templates")  # Fallback path
+            
+        if not templates_dir.exists():
+            templates_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure template has .json extension
+        if not template_name.endswith('.json'):
+            template_name = f"{template_name}.json"
+            
+        template_path = templates_dir / template_name
+        
+        # Get current form data
+        form_data = builder.get_current_form()
+        
+        # Save to file without validation since builder.get_current_form()
+        # should already return valid data
+        with open(template_path, "w") as f:
+            json.dump(form_data, f, indent=2)
+            
+        return {
+            "status": "success",
+            "message": f"Form saved as template '{template_name}'",
+            "template_path": str(template_path)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
