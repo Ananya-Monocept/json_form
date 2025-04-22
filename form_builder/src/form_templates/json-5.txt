@@ -1,0 +1,97 @@
+{
+  "form": {
+    "sections": [
+      {
+        "sectionName": "Proposer Personal Information",
+        "sectionId": "personalInfo",
+        "fields": [
+          {
+            "fieldName": "First Name",
+            "fieldId": "firstName",
+            "type": "text",
+            "label": "First Name",
+            "validators": [
+              {
+                "type": "required",
+                "message": "First Name is required."
+              }
+            ],
+            "visibilityRules": {
+              "dependentField": "age",
+              "visibilityCondition": ">= 18"
+            }
+          },
+          {
+            "fieldName": "Last Name",
+            "fieldId": "lastName",
+            "type": "text",
+            "label": "Last Name",
+            "validators": [
+              {
+                "type": "required",
+                "message": "Last Name is required."
+              }
+            ]
+          },
+          {
+            "fieldName": "Date of Birth",
+            "fieldId": "dob",
+            "type": "date",
+            "label": "Date of Birth",
+            "validators": [
+              {
+                "type": "required",
+                "message": "Date of Birth is required."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "sectionName": "ID Proof",
+        "sectionId": "idProof",
+        "fields": [
+          {
+            "fieldName": "ID Proof Type",
+            "fieldId": "idProofType",
+            "type": "select",
+            "label": "Select ID Proof Type",
+            "options": [
+              {
+                "value": "Aadhar",
+                "label": "Aadhar"
+              },
+              {
+                "value": "Passport",
+                "label": "Passport"
+              }
+            ],
+            "validators": [
+              {
+                "type": "required",
+                "message": "ID Proof Type is required."
+              }
+            ]
+          },
+          {
+            "fieldName": "ID Proof Number",
+            "fieldId": "idProofNumber",
+            "type": "text",
+            "label": "ID Proof Number",
+            "validators": [
+              {
+                "type": "required",
+                "message": "ID Proof Number is required."
+              },
+              {
+                "type": "pattern",
+                "value": "^[0-9]{12}$",
+                "message": "Invalid ID Proof Number format."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
