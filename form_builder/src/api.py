@@ -35,12 +35,7 @@ class TemplateRequestModel(BaseModel):
     template_name: str
 
 
-def to_camel_case(label: str) -> str:
-    """Convert a label to camelCase."""
-    words = label.strip().lower().split()
-    if not words:
-        return ""
-    return words[0] + "".join(word.capitalize() for word in words[1:])
+
 
 def clean_null_values(data):
         """Recursively remove all null values from dictionaries and lists."""
@@ -66,21 +61,27 @@ def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
     1. Existing structure (`formSections` directly under root).
     2. New structure nested under `data → jsonFormData`.
     3. Structure with `form → sections → fields`.
+    4. Directly provided `formSections` at the root level.
     """
     # Make a deep copy to avoid modifying the original
     transformed_data = {}
 
     try:
         # Extract the nested jsonFormData or the new "form" structure
-        form_data = json_data.get('data', {}).get('data', {}).get('jsonFormData', {})
+        form_data = (
+            json_data.get('data', {}).get('data', {}).get('jsonFormData', {})
+            or json_data.get("data", {}).get("jsonFormData", {})
+            or json_data.get("form", {})
+            or {}
+        )
+
+        # If no valid structure is found, check for direct `formSections` at the root level
+        if not form_data and "formSections" in json_data:
+            form_data = {"formSections": json_data["formSections"]}
+
+        # If still no valid structure is found, raise an error
         if not form_data:
-            # Try extracting from `data → formData → jsonFormData`
-            form_data = json_data.get("data", {}).get("jsonFormData", {})
-            if not form_data:
-                # Try extracting the new "form" structure
-                form_data = json_data.get("form", {})
-                if not form_data:
-                    raise ValueError("Could not find valid form data in the provided JSON")
+            raise ValueError(f"Could not find valid form data. Available top-level keys: {list(json_data.keys())}")
 
         # Copy the form_data to our transformed data
         transformed_data = deepcopy(form_data)
@@ -99,11 +100,28 @@ def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
                     "formControls": []
                 }
 
+                seen_names = set()  # To handle duplicate names
+
                 # Map "fields" to "formControls"
                 for field in section.get("fields", []):
+                    # Skip invisible or disabled controls
+                    if field.get("visible", True) is False or field.get("disabled", False) is True:
+                        continue
+
+                    # Normalize the name field
+                    label = field.get("label", field.get("fieldName", "Unnamed Control"))
+                    name = field.get("fieldId", "")
+                    if not name:
+                        name = to_camel_case(label)
+
+                    # Handle duplicate names
+                    if name in seen_names:
+                        name = f"{name}_duplicate"
+                    seen_names.add(name)
+
                     transformed_field = {
-                        "name": field.get("fieldId", f"control_{len(transformed_section['formControls'])}"),
-                        "label": field.get("label", field.get("fieldName", "Untitled Control")),
+                        "name": name,
+                        "label": label,
                         "visibleLabel": True,
                         "type_": field.get("type", "text"),
                         "validators": [],
@@ -121,6 +139,14 @@ def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
                             transformed_validator["validatorName"] = "pattern"
                             transformed_validator["pattern"] = validator.get("value", "")
                             transformed_validator["message"] = validator.get("message", "Invalid format.")
+                        elif validator.get("type") == "minlength":
+                            transformed_validator["validatorName"] = "minLength"
+                            transformed_validator["minLength"] = validator.get("value", 0)
+                            transformed_validator["message"] = validator.get("message", "Input too short.")
+                        elif validator.get("type") == "maxlength":
+                            transformed_validator["validatorName"] = "maxLength"
+                            transformed_validator["maxLength"] = validator.get("value", 0)
+                            transformed_validator["message"] = validator.get("message", "Input too long.")
                         if transformed_validator:
                             transformed_field["validators"].append(transformed_validator)
 
@@ -142,8 +168,27 @@ def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
                 if "class" in section and "class_" not in section:
                     section["class_"] = section.pop("class")
 
+                seen_names = set()  # To handle duplicate names
+
                 # Process controls in this section
                 for control in section.get("formControls", []):
+                    # Skip invisible or disabled controls
+                    if control.get("visible", True) is False or control.get("disabled", False) is True:
+                        continue
+
+                    # Normalize the name field
+                    label = control.get("label", "Unnamed Control")
+                    name = control.get("name", "")
+                    if not name:
+                        name = to_camel_case(label)
+
+                    # Handle duplicate names
+                    if name in seen_names:
+                        name = f"{name}_duplicate"
+                    seen_names.add(name)
+
+                    control["name"] = name
+
                     if "class" in control and "class_" not in control:
                         control["class_"] = control.pop("class")
 
@@ -163,6 +208,14 @@ def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
         return transformed_data
     except Exception as e:
         raise ValueError(f"Error transforming JSON: {str(e)}")
+# Helper Functions
+def to_camel_case(label: str) -> str:
+    """Convert a label to camelCase."""
+    words = label.strip().lower().split()
+    if not words:
+        return ""
+    return words[0] + "".join(word.capitalize() for word in words[1:])
+
 
 def _transform_class_fields(data: Dict[str, Any]) -> None:
     """Transform 'class' fields to 'class_' for Pydantic compatibility."""
@@ -177,6 +230,7 @@ def _transform_class_fields(data: Dict[str, Any]) -> None:
             if isinstance(item, (dict, list)):
                 _transform_class_fields(item)
 
+
 def _transform_type_fields(data: Dict[str, Any]) -> None:
     """Transform 'type' fields to 'type_' for Pydantic compatibility."""
     if isinstance(data, dict):
@@ -189,6 +243,7 @@ def _transform_type_fields(data: Dict[str, Any]) -> None:
         for item in data:
             if isinstance(item, (dict, list)):
                 _transform_type_fields(item)
+
 
 def _transform_validators(data: Dict[str, Any]) -> None:
     """Transform validator fields to match Pydantic model expectations."""
@@ -206,6 +261,7 @@ def _transform_validators(data: Dict[str, Any]) -> None:
         for item in data:
             if isinstance(item, (dict, list)):
                 _transform_validators(item)
+
 
 def _transform_options(data: Dict[str, Any]) -> None:
     """Transform options fields to match Pydantic model expectations."""

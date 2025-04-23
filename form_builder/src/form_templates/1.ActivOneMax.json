@@ -1,2124 +1,712 @@
 {
-  "formTitle": "Leads",
+  "formTitle": "Untitled Form",
   "saveBtnTitle": "Save",
-  "prevBtnTitle": "",
-  "resetBtnTitle": "",
-  "calculateBtnTitle": "",
-  "saveBtnFunction": "",
-  "themeFile": "ABHI.css",
+  "resetBtnTitle": "Reset",
+  "themeFile": "default_theme.json",
   "formSections": [
     {
       "sectionTitle": "Existing Policy",
-      "visibleLabel": true,
       "visible": true,
-      "class": "col-md-12 section-title",
+      "isVisible": true,
       "formControls": [
         {
           "name": "exisitingPolicy",
           "label": "Do you have any existing insurance policy?",
           "visibleLabel": true,
-          "onChangeMethod": "changeMainFormDependentControls",
-          "type": "radio",
-          "value": "",
-          "visible": true,
-          "class": "radio-button",
-          "radioOptions": [
-            {
-              "name": "yes",
-              "label": "Yes",
-              "value": "Y",
-              "selected": false,
-              "dependentControls": [
-                {
-                  "name": "isAdityaBirlaPolicy",
-                  "visibility": true
-                },
-                {
-                  "name": "memberDobProposer",
-                  "visibility": true
-                }
-              ]
-            },
-            {
-              "name": "no",
-              "label": "No",
-              "value": "N",
-              "selected": true,
-              "dependentControls": [
-                {
-                  "name": "isAdityaBirlaPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": false
-                },
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": false
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            }
-          ]
+          "type_": "radio",
+          "visible": true
         },
         {
           "name": "isAdityaBirlaPolicy",
           "label": "Is the policy from Aditya Birla?",
           "visibleLabel": true,
-          "onChangeMethod": "changeMainFormDependentControls",
-          "type": "radio",
-          "value": "",
-          "visible": false,
-          "class": "radio-button",
-          "radioOptions": [
-            {
-              "name": "yes",
-              "label": "Yes",
-              "value": "Y",
-              "selected": false,
-              "dependentControls": [
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": false
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "name": "no",
-              "label": "No",
-              "value": "N",
-              "selected": false,
-              "dependentControls": [
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": true
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": true
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            }
-          ]
+          "type_": "radio",
+          "visible": true
         },
         {
           "name": "getPolicyNumber",
           "label": "Policy Number",
           "visibleLabel": true,
-          "visible": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-6",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Policy Number is required field"
+              "message": "Policy Number is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[0-9]{2}-[0-9]{2}-[0-9]{7}-[0-9]{2}$",
-              "message": "Policy Number format is not valid eg(00-00-0000000-00)"
+              "message": "Policy Number format is not valid eg(00-00-0000000-00)",
+              "pattern": "^[0-9]{2}-[0-9]{2}-[0-9]{7}-[0-9]{2}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "getPolicyDetails",
           "label": "Get Policy Details",
           "visibleLabel": false,
-          "visible": false,
-          "type": "button",
-          "class": "col-12 col-md-6 col-lg-4 field-btn",
-          "methodName": "getPolicyDetails"
+          "type_": "button",
+          "visible": true
         },
         {
           "name": "getInsurerDetails",
           "label": "Select the Insurer",
-          "visible": false,
           "visibleLabel": true,
-          "onChangeMethod": "changeMainFormDependentControls",
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "name": "Star insurance",
-              "value": "starinsurance",
-              "dependentControls": [
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": true
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": true
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "name": "HDFC Ergo",
-              "value": "hdfc ergo",
-              "dependentControls": [
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": true
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": true
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "name": "ICICI",
-              "value": "ICICI",
-              "dependentControls": [
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": true
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": true
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "name": "Niva bupa",
-              "value": "Niva bupa",
-              "dependentControls": [
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": true
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": true
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "name": "National Insurance",
-              "value": "national insurance",
-              "dependentControls": [
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": true
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": true
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "name": "Care",
-              "value": "care",
-              "dependentControls": [
-                {
-                  "name": "getInsurerDetails",
-                  "visibility": true
-                },
-                {
-                  "name": "previousDocumentPara",
-                  "visibility": true
-                },
-                {
-                  "name": "getPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "getPolicyDetails",
-                  "visibility": false
-                },
-                {
-                  "name": "policyDocumentUpload",
-                  "visibility": true
-                },
-                {
-                  "name": "policyDocumentSubmit",
-                  "visibility": true
-                },
-                {
-                  "name": "policyStartDate",
-                  "visibility": false
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": false
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": false
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": false
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": false
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": false
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": false
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": false
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": false
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "name": "Others",
-              "value": "Others",
-              "dependentControls": [
-                {
-                  "name": "policyStartDate",
-                  "visibility": true
-                },
-                {
-                  "name": "productNameOfPreviousPolicy",
-                  "visibility": true
-                },
-                {
-                  "name": "previousPolicyType",
-                  "visibility": true
-                },
-                {
-                  "name": "previousPolicyNumber",
-                  "visibility": true
-                },
-                {
-                  "name": "nameOfInsurer",
-                  "visibility": true
-                },
-                {
-                  "name": "sumInsuredPorting",
-                  "visibility": true
-                },
-                {
-                  "name": "policyEndDate",
-                  "visibility": true
-                },
-                {
-                  "name": "previousPolicyVariant",
-                  "visibility": true
-                },
-                {
-                  "name": "inceptionDate",
-                  "visibility": true
-                },
-                {
-                  "name": "breakTime",
-                  "visibility": true
-                },
-                {
-                  "name": "claimPreviousPolicy",
-                  "visibility": true
-                },
-                {
-                  "name": "anyAddOns",
-                  "visibility": true
-                }
-              ]
-            }
-          ]
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "previousDocumentPara",
           "label": "Upload Previous Policy Document",
           "visibleLabel": true,
-          "type": "paragraph",
-          "class": "col-12 col-md-6 col-lg-6",
-          "visible": false
+          "type_": "paragraph",
+          "visible": true
         },
         {
           "name": "policyDocumentUpload",
           "label": "Upload Previous Policy",
           "visibleLabel": false,
-          "value": "",
-          "type": "fileupload",
-          "class": "col-12 col-md-6 col-lg-4",
-          "visible": false
-        },
-        {
-          "name": "policyDocumentSubmit",
-          "label": "Get Policy Details",
-          "visibleLabel": false,
-          "visible": false,
-          "value": "",
-          "type": "button",
-          "methodName": "uploadPolicyDocument",
-          "class": "col-12 col-md-6 col-lg-4 field-btn"
+          "type_": "fileupload",
+          "visible": true
         },
         {
           "name": "productNameOfPreviousPolicy",
           "label": "Product Name of Previous Policy",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "previousPolicyType",
           "label": "Previous Policy Type",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-4"
-        },
-        {
-          "name": "previousPolicyNumber",
-          "label": "Policy Number",
-          "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "nameOfInsurer",
           "label": "Name of Insurer",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "sumInsuredPorting",
           "label": "Sum Insured",
           "visibleLabel": true,
-          "type": "number",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "number",
+          "visible": true
         },
         {
           "name": "policyStartDate",
           "label": "Policy Start Date",
           "visibleLabel": true,
-          "type": "date",
-          "value": "",
-          "class": "col-12 col-md-3 col-lg-4",
-          "visible": false
+          "type_": "date",
+          "visible": true
         },
         {
           "name": "policyEndDate",
           "label": "Policy End Date",
           "visibleLabel": true,
-          "type": "date",
-          "value": "",
-          "class": "col-12 col-md-3 col-lg-4",
-          "visible": false
+          "type_": "date",
+          "visible": true
         },
         {
           "name": "previousPolicyVariant",
           "label": "Previous Policy Variant",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-3 col-lg-4",
-          "visible": false
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "inceptionDate",
           "label": "inception Date",
           "visibleLabel": true,
-          "type": "date",
-          "value": "",
-          "class": "col-12 col-md-3 col-lg-4",
-          "visible": false
+          "type_": "date",
+          "visible": true
         },
         {
           "name": "breakTime",
           "label": "Any Break in time?",
           "visibleLabel": true,
-          "class": "radio-button",
-          "value": "N",
-          "visible": false,
-          "radioOptions": [
-            {
-              "name": "Y",
-              "label": "Yes",
-              "value": "Y",
-              "selected": false
-            },
-            {
-              "name": "N",
-              "label": "No",
-              "value": "N",
-              "selected": true
-            }
-          ],
-          "type": "radio"
+          "type_": "radio",
+          "visible": true
         },
         {
           "name": "claimPreviousPolicy",
           "label": "Any Claim in Previous Policy",
           "visibleLabel": true,
-          "class": "radio-button",
-          "value": "N",
-          "visible": false,
-          "radioOptions": [
-            {
-              "name": "Y",
-              "label": "Yes",
-              "value": "Y",
-              "selected": false
-            },
-            {
-              "name": "N",
-              "label": "No",
-              "value": "N",
-              "selected": true
-            }
-          ],
-          "type": "radio"
+          "type_": "radio",
+          "visible": true
         },
         {
           "name": "anyAddOns",
           "label": "Any Add-Ons/Riders in Previous Policy?",
           "visibleLabel": true,
-          "class": "radio-button",
-          "value": "N",
-          "visible": false,
-          "radioOptions": [
-            {
-              "name": "Y",
-              "label": "Yes",
-              "value": "Y",
-              "selected": false
-            },
-            {
-              "name": "N",
-              "label": "No",
-              "value": "N",
-              "selected": true
-            }
-          ],
-          "type": "radio"
+          "type_": "radio",
+          "visible": true
         },
         {
           "name": "memberDobProposer",
           "label": "Date of Birth",
           "visibleLabel": true,
-          "type": "date",
-          "minDateLength": "pastDate",
-          "maxDateLength": "currentDate",
-          "value": "",
-          "class": "col-12 col-md-4 col-lg-4",
-          "dependentControls": [
-            "memberAgeProposer"
-          ],
-          "visible": true,
+          "type_": "date",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "DOB is required field."
+              "message": "DOB is required field.",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-              "message": "DOB should be in dd/mm/yyyy format."
+              "message": "DOB should be in dd/mm/yyyy format.",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "memberAgeProposer",
           "label": "Age",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "disabled": true,
-          "visible": true,
-          "class": "col-12 col-md-2 col-lg-2",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": false,
-              "message": "Age is required field."
+              "message": "Age is required field.",
+              "required": false
             },
             {
               "validatorName": "pattern",
-              "pattern": "^(1[8-9]|[2-9][0-9]|1[0-1][0-9]|120)$",
-              "message": "Provide between 18 to 120."
+              "message": "Provide between 18 to 120.",
+              "pattern": "^(1[8-9]|[2-9][0-9]|1[0-1][0-9]|120)$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "panNo",
           "label": "PAN Card Number",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-3 col-lg-3",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "PAN No is required field"
+              "message": "PAN No is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}",
-              "message": "PAN No is not valid"
+              "message": "PAN No is not valid",
+              "pattern": "[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "verifyKYC",
           "label": "Verify KYC",
           "visibleLabel": false,
-          "visible": true,
-          "disabled": false,
-          "type": "button",
-          "class": "col-12 col-md-6 col-lg-2 field-btn",
-          "methodName": "verifyKYC"
+          "type_": "button",
+          "visible": true
         }
-      ]
+      ],
+      "visibleLabel": true,
+      "class_": "col-md-12 section-title"
     },
     {
       "sectionTitle": "Personal Details",
-      "visibleLabel": true,
       "visible": true,
-      "class": "col-md-12 section-title",
+      "isVisible": true,
       "formControls": [
         {
           "name": "isPep",
           "label": "Are you a PEP (Politically Exposed Person) or relative of PEP?",
           "visibleLabel": true,
-          "class": "radio-button",
-          "value": "N",
-          "toolTipMessage": "*Politically Exposed Persons* (PEPs) are individual who have been entrusted with prominent public functions by a foreign country, including the heads of States of Governments, senior politicians, senior government or judicial or military officers, senior executives of state-owned corporation and important political party officials.",
-          "visible": true,
-          "radioOptions": [
-            {
-              "name": "N",
-              "label": "No",
-              "value": "N",
-              "selected": true
-            },
-            {
-              "name": "Y",
-              "label": "Yes",
-              "value": "Y",
-              "selected": false
-            }
-          ],
-          "type": "radio"
+          "type_": "radio",
+          "visible": true
         },
         {
           "name": "productVariant",
           "label": "Product Variant",
           "visibleLabel": true,
-          "visible": false,
-          "type": "text",
-          "value": "Max",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "tenureAmount",
           "label": "Tenure Amount",
-          "visible": false,
           "visibleLabel": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-2"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "displayTaxList",
           "label": "Display Tax List",
-          "visible": false,
           "visibleLabel": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-2"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "ckycNo",
           "label": "Customer KYC",
-          "visible": false,
           "visibleLabel": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-2"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "leadNumber",
           "label": "Lead No",
-          "visible": false,
           "visibleLabel": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-2"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "isEmployee",
           "label": "Is Employee",
           "visibleLabel": true,
-          "visible": false,
-          "type": "text",
-          "value": false,
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "memberPlan",
           "label": "Activ One Max",
           "visibleLabel": true,
-          "type": "text",
-          "visible": false,
-          "value": "Max",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "productType",
           "label": "Product Type",
           "visibleLabel": false,
-          "type": "text",
-          "value": "AO",
-          "class": "",
-          "visible": false
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "productName",
           "label": "Product Name",
           "visibleLabel": false,
-          "type": "text",
-          "value": "Activ One Max",
-          "class": "",
-          "visible": false
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "planCode",
           "label": "Product Code",
           "visibleLabel": false,
-          "type": "text",
-          "value": "MASSMARKET",
-          "class": "",
-          "visible": false
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "productId",
           "label": "Product Id",
           "visibleLabel": false,
-          "type": "text",
-          "value": "7200",
-          "class": "",
-          "visible": false
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "proposerFullName",
           "label": "Proposer Full Name",
           "visibleLabel": false,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "customerId",
           "label": "Customer Id",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-3",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Customer Id is required"
+              "message": "Customer Id is required",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[0-9]{9}$",
-              "message": "Customer Id must be exactly 9 digits"
+              "message": "Customer Id must be exactly 9 digits",
+              "pattern": "^[0-9]{9}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "preFix",
           "label": "Salutation",
           "visibleLabel": true,
-          "methodName": "updatePrefixBasedOnGender",
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "preFix",
-          "visible": true,
-          "value": "",
-          "type": "select",
-          "options": [
-            {
-              "value": "Mr",
-              "name": "Mr"
-            },
-            {
-              "value": "Mrs",
-              "name": "Mrs"
-            },
-            {
-              "value": "Ms",
-              "name": "Ms"
-            },
-            {
-              "value": "Dr",
-              "name": "Dr"
-            },
-            {
-              "value": "Mx",
-              "name": "Mx"
-            },
-            {
-              "value": "Miss",
-              "name": "Miss"
-            },
-            {
-              "value": "Others",
-              "name": "Others"
-            }
-          ],
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "firstName",
           "label": "First Name",
           "visibleLabel": true,
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "firstName",
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-3",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "First Name is required"
+              "message": "First Name is required",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[a-zA-Z ]{1,50}$",
-              "message": "Only alphabets, maxLength 50"
+              "message": "Only alphabets, maxLength 50",
+              "pattern": "^[a-zA-Z ]{1,50}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "middleName",
           "label": "Middle Name",
           "visibleLabel": true,
-          "type": "text",
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "middleName",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "lastName",
           "label": "Last Name",
           "visibleLabel": true,
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "lastName",
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-3",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Last Name is required"
+              "message": "Last Name is required",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[a-zA-Z ]{1,50}$",
-              "message": "Only alphabets, maxLength 50"
+              "message": "Only alphabets, maxLength 50",
+              "pattern": "^[a-zA-Z ]{1,50}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "proposerGender",
           "label": "Gender",
           "visibleLabel": true,
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "memberGender",
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "visible": true,
-          "options": [
-            {
-              "name": "Male",
-              "value": "M"
-            },
-            {
-              "name": "Female",
-              "value": "F"
-            },
-            {
-              "name": "Others",
-              "value": "O"
-            }
-          ],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Gender is required field."
+              "message": "Gender is required field.",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "emailId",
           "label": "Email Address",
-          "visible": true,
           "visibleLabel": true,
-          "type": "email",
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "emailId",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "email",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Email Id is required field"
+              "message": "Email Id is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^(?!.*[._-]{2})[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)*@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,4}$",
-              "message": "Email Id is not valid"
+              "message": "Email Id is not valid",
+              "pattern": "^(?!.*[._-]{2})[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)*@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,4}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "alternateEmailId",
           "label": "Alternate Email Address",
-          "visible": true,
           "visibleLabel": true,
-          "type": "email",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "email",
+          "visible": true
         },
         {
           "name": "mobileNumber",
           "label": "Mobile Number",
           "visibleLabel": true,
-          "visible": true,
-          "type": "phonenumber",
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "mobileNumber",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "phonenumber",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Mobile No is required field"
+              "message": "Mobile No is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[6-9]\\d{9}$",
-              "message": "Mobile No is not valid"
+              "message": "Mobile No is not valid",
+              "pattern": "^[6-9]\\d{9}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "emergencyContactNumber",
           "label": "Emergency Contact Number",
           "visibleLabel": true,
-          "visible": true,
-          "type": "phonenumber",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "phonenumber",
+          "visible": true
         },
         {
           "name": "whatsAppNumber",
           "label": "WhatsApp Number",
           "visibleLabel": true,
-          "visible": true,
-          "type": "phonenumber",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "phonenumber",
+          "visible": true
         },
         {
           "name": "idProof",
           "label": "ID Type",
           "visibleLabel": true,
-          "visible": true,
-          "onChangeMethod": "changeMainFormDependentControls",
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "id": "2",
-              "value": "Aadhar Card",
-              "name": "Aadhar Card",
-              "dependentControls": [
-                {
-                  "name": "aadharIdNo",
-                  "visibility": true
-                },
-                {
-                  "name": "passportIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "licenseIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "voterIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "marksheetIdNo",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "id": "3",
-              "value": "Passport",
-              "name": "Passport",
-              "dependentControls": [
-                {
-                  "name": "aadharIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "passportIdNo",
-                  "visibility": true
-                },
-                {
-                  "name": "licenseIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "voterIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "marksheetIdNo",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "id": "4",
-              "value": "Driving License",
-              "name": "Driving License",
-              "dependentControls": [
-                {
-                  "name": "aadharIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "passportIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "licenseIdNo",
-                  "visibility": true
-                },
-                {
-                  "name": "voterIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "marksheetIdNo",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "id": "5",
-              "value": "Voter ID",
-              "name": "Voter ID",
-              "dependentControls": [
-                {
-                  "name": "aadharIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "passportIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "licenseIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "voterIdNo",
-                  "visibility": true
-                },
-                {
-                  "name": "marksheetIdNo",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "id": "6",
-              "value": "10th (SSC) Mark sheet",
-              "name": "10th (SSC) Mark sheet",
-              "dependentControls": [
-                {
-                  "name": "aadharIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "passportIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "licenseIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "voterIdNo",
-                  "visibility": false
-                },
-                {
-                  "name": "marksheetIdNo",
-                  "visibility": true
-                }
-              ]
-            }
-          ],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Id is required field"
+              "message": "Id is required field",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "aadharIdNo",
           "label": "Aadhar last 4 digits",
           "visibleLabel": true,
-          "type": "number",
-          "maxLength": "4",
-          "toolTipMessage": "Please enter the last 4 digits of your Aadhar ID.",
-          "visible": false,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "number",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Aadhar Number is required field"
+              "message": "Aadhar Number is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "[0-9]{4}",
-              "message": "Aadhar ID must be exactly last 4 digits."
+              "message": "Aadhar ID must be exactly last 4 digits.",
+              "pattern": "[0-9]{4}"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "passportIdNo",
           "label": "Passport Id",
           "visibleLabel": true,
-          "type": "idnumber",
-          "toolTipMessage": "Please specify Passport Number in the format: First character from (A-Z), followed by 2 numbers, an optional space, and 5 numbers.",
-          "visible": false,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "idnumber",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Passport Id is required field"
+              "message": "Passport Id is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[A-Z][0-9]{2}(?: [0-9]{5}|[0-9]{5})$",
-              "message": "Passport Number must follow the format: First letter (A-Z), 2 numbers, optional space and 5 numbers."
+              "message": "Passport Number must follow the format: First letter (A-Z), 2 numbers, optional space and 5 numbers.",
+              "pattern": "^[A-Z][0-9]{2}(?: [0-9]{5}|[0-9]{5})$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "licenseIdNo",
           "label": "Driving License Number",
           "visibleLabel": true,
-          "type": "idnumber",
-          "toolTipMessage": "The first two characters should be upper-case alphabets representing the state code, followed by two digits representing the RTO code, four digits for the year, and seven digits.",
-          "visible": false,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "idnumber",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Driving License is required field"
+              "message": "Driving License is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[A-Z]{2}[0-9]{2}[0-9]{4}[0-9]{7}$",
-              "message": "Driving License must follow the format: 2 uppercase letters, 2 digits, 4 digits, 7 digits."
+              "message": "Driving License must follow the format: 2 uppercase letters, 2 digits, 4 digits, 7 digits.",
+              "pattern": "^[A-Z]{2}[0-9]{2}[0-9]{4}[0-9]{7}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "voterIdNo",
           "label": "EID Number",
           "visibleLabel": true,
-          "type": "idnumber",
-          "visible": false,
-          "toolTipMessage": "Please enter a valid Voter ID, e.g., WED1234567.",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "idnumber",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Voter Id is required field"
+              "message": "Voter Id is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[A-Z]{3}[0-9]{7}$",
-              "message": "Voter ID must follow the format: 3 uppercase letters followed by 7 digits."
+              "message": "Voter ID must follow the format: 3 uppercase letters followed by 7 digits.",
+              "pattern": "^[A-Z]{3}[0-9]{7}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "marksheetIdNo",
           "label": "Marksheet Id",
           "visibleLabel": true,
-          "type": "idnumber",
-          "visible": false,
-          "toolTipMessage": "Please enter a valid SSC Marksheet number with 7 digits.",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "idnumber",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Marksheet No is required field"
+              "message": "Marksheet No is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[0-9]{7}$",
-              "message": "SSC Marksheet number must be exactly 7 digits."
+              "message": "SSC Marksheet number must be exactly 7 digits.",
+              "pattern": "^[0-9]{7}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "annualIncome",
           "label": "Annual Income",
           "visibleLabel": true,
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "annualIncome",
-          "type": "select",
-          "visible": true,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "name": "Upto 5L",
-              "value": "500000"
-            },
-            {
-              "name": "5L to 10L",
-              "value": "1000000"
-            },
-            {
-              "name": "10L to 20L",
-              "value": "2000000"
-            },
-            {
-              "name": "> 20L",
-              "value": "2500000"
-            }
-          ],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Annual Income is required field"
+              "message": "Annual Income is required field",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "occupation",
           "label": "Occupation",
           "visibleLabel": true,
-          "getAllOption": "getAllProposerOccupation",
-          "onChangeMethod": "setForSelfMember",
-          "otherControlName": "productMemberDesignation",
-          "type": "select",
-          "visible": true,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Occupation is required field"
+              "message": "Occupation is required field",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "maritalStatus",
           "label": "Marital Status",
           "visibleLabel": true,
-          "type": "select",
-          "visible": true,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "id": "M",
-              "value": "Married",
-              "name": "Married"
-            },
-            {
-              "id": "S",
-              "value": "Single",
-              "name": "Single"
-            },
-            {
-              "id": "W",
-              "value": "Widow(er)",
-              "name": "Widow(er)"
-            },
-            {
-              "id": "PS",
-              "value": "Separated",
-              "name": "Separated"
-            },
-            {
-              "id": "D",
-              "value": "Divorced",
-              "name": "Divorced"
-            },
-            {
-              "id": "L",
-              "value": "Live In",
-              "name": "Live In"
-            }
-          ],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Marital Status is required field"
+              "message": "Marital Status is required field",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "gstDetails",
           "label": "GST Details",
           "visibleLabel": true,
-          "type": "select",
-          "onChangeMethod": "changeMainFormDependentControls",
-          "visible": true,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "id": "1",
-              "value": "Consumers",
-              "name": "Consumers",
-              "selected": true,
-              "dependentControls": [
-                {
-                  "name": "gstIn",
-                  "visibility": false
-                }
-              ]
-            },
-            {
-              "id": "2",
-              "value": "Registered",
-              "name": "Registered",
-              "selected": false,
-              "dependentControls": [
-                {
-                  "name": "gstIn",
-                  "visibility": true
-                }
-              ]
-            },
-            {
-              "id": "3",
-              "value": "Compounding Dealers",
-              "name": "Compounding Dealers",
-              "selected": false,
-              "dependentControls": [
-                {
-                  "name": "gstIn",
-                  "visibility": true
-                }
-              ]
-            }
-          ]
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "gstIn",
           "label": "GSTIN",
           "visibleLabel": true,
-          "type": "text",
-          "toolTipMessage": "The GSTIN must be 15 characters long. The first two characters should be digits representing the state code, followed by five uppercase alphabets, four digits, one alphabet, and ending with three alphanumeric characters.",
-          "visible": false,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "GSTIN is required field"
+              "message": "GSTIN is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^\\d{2}[a-zA-Z]{5}\\d{4}[a-zA-Z]{1}[a-zA-Z0-9]{3}$",
-              "message": "Invalid GSTIN format."
+              "message": "Invalid GSTIN format.",
+              "pattern": "^\\d{2}[a-zA-Z]{5}\\d{4}[a-zA-Z]{1}[a-zA-Z0-9]{3}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "educationDetails",
           "label": "Education",
           "visibleLabel": true,
-          "visible": true,
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "id": "2",
-              "value": "Below Metric",
-              "name": "Below Metric"
-            },
-            {
-              "id": "3",
-              "value": "Metric",
-              "name": "Metric"
-            },
-            {
-              "id": "4",
-              "value": "Under Graduate",
-              "name": "Under Graduate"
-            },
-            {
-              "id": "5",
-              "value": "Graduate",
-              "name": "Graduate"
-            },
-            {
-              "id": "6",
-              "value": "Post Graduate",
-              "name": "Post Graduate"
-            },
-            {
-              "id": "7",
-              "value": "Diploma",
-              "name": "Diploma"
-            },
-            {
-              "id": "8",
-              "value": "Professional",
-              "name": "Professional"
-            },
-            {
-              "id": "9",
-              "value": "Other",
-              "name": "Other"
-            }
-          ],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Education is required field"
+              "message": "Education is required field",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "nationality",
           "label": "Nationality",
           "visibleLabel": true,
-          "type": "select",
-          "visible": true,
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "id": "1",
-              "value": "Indian",
-              "name": "Indian",
-              "selected": true
-            },
-            {
-              "id": "2",
-              "value": "Non Resident Indian",
-              "name": "Non Resident Indian",
-              "selected": false
-            },
-            {
-              "id": "3",
-              "value": "Foreign National with Indian Origin",
-              "name": "Foreign National with Indian Origin",
-              "selected": false
-            },
-            {
-              "id": "4",
-              "value": "Person of Indian Origin",
-              "name": "Person of Indian Origin",
-              "selected": false
-            }
-          ],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Nationality is required field"
+              "message": "Nationality is required field",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "typeOfBusiness",
           "label": "Business Type",
           "visibleLabel": true,
-          "visible": false,
-          "type": "select",
-          "value": "NB",
-          "options": [
-            {
-              "value": "NB",
-              "name": "New Business"
-            },
-            {
-              "value": "Roll Over",
-              "name": "Portability"
-            }
-          ],
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "memberPolicyType",
           "label": "Select Policy Type",
           "visibleLabel": true,
-          "visible": true,
-          "type": "select",
-          "dependentControls": [
-            "sumInsured",
-            "zoneValue"
-          ],
-          "onChangeMethod": "handlePolicyTypeChange",
-          "methodName": "handlePolicyTypeChange",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "name": "FAMILY FLOATER",
-              "value": "Family Floater",
-              "selected": false
-            },
-            {
-              "name": "MULTI INDIVIDUAL",
-              "value": "Multi Individual",
-              "selected": true
-            }
-          ],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Policy Type is required field."
+              "message": "Policy Type is required field.",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "isChronicCare",
           "label": "Does any member has Chronic condition?",
           "visibleLabel": true,
-          "type": "radio",
-          "value": "",
-          "visible": true,
-          "class": "radio-button",
-          "radioOptions": [
-            {
-              "name": "yes",
-              "label": "Yes",
-              "value": "Y",
-              "selected": false
-            },
-            {
-              "name": "no",
-              "label": "No",
-              "value": "N",
-              "selected": true
-            }
-          ]
+          "type_": "radio",
+          "visible": true
         },
         {
           "name": "horizontalLine",
-          "type": "line",
-          "visible": true,
-          "class": "custom-line"
+          "label": "Untitled Control",
+          "visibleLabel": true,
+          "type_": "line",
+          "visible": true
         },
         {
           "name": "addressTitle",
           "label": "Permanent Address Details",
-          "type": "paragraph",
           "visibleLabel": true,
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-4 addMember"
+          "type_": "paragraph",
+          "visible": true
         },
         {
           "name": "permanentAddress1",
           "label": "Permanent Address 1",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-6 col-xl-4",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
@@ -2126,19 +714,17 @@
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$",
-              "message": "Maxmium Length is 50"
+              "message": "Maxmium Length is 50",
+              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "permanentAddress2",
           "label": "Permanent Address 2",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-6 col-xl-4",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
@@ -2146,93 +732,71 @@
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$",
-              "message": "Maxmium Length is 50"
+              "message": "Maxmium Length is 50",
+              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "permanentAddress3",
           "label": "Permanent Address 3",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-6 col-xl-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "proposerPincode",
           "label": "Pincode",
           "visibleLabel": true,
-          "visible": true,
-          "type": "number",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "methodName": "getCityStateByPin",
-          "onChangeMethod": "setForSelfMember",
+          "type_": "number",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Pincode is required field"
+              "message": "Pincode is required field",
+              "required": true
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[1-9][0-9]{5}$",
-              "message": "Pincode is not valid"
+              "message": "Pincode is not valid",
+              "pattern": "^[1-9][0-9]{5}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "city",
           "label": "City",
-          "class": "col-12 col-md-4 col-lg-4",
-          "disabled": true,
-          "visible": true,
           "visibleLabel": true,
-          "value": "",
-          "type": "text"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "state",
           "label": "State",
-          "class": "col-12 col-md-4",
           "visibleLabel": true,
-          "disabled": true,
-          "visible": true,
-          "value": "",
-          "type": "text"
-        },
-        {
-          "name": "horizontalLine",
-          "type": "line",
-          "visible": true,
-          "class": "custom-line"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "corresaddressTitle",
           "label": "Correspondence Address Details",
-          "type": "paragraph",
           "visibleLabel": true,
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-4 addMember"
+          "type_": "paragraph",
+          "visible": true
         },
         {
           "name": "addressTitle1",
           "label": "Same as Above Address Details",
-          "type": "checkbox",
           "visibleLabel": true,
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-4 nomineeCheck"
+          "type_": "checkbox",
+          "visible": true
         },
         {
           "name": "proposerAddress1",
           "label": "Correspondence Address 1",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-6 col-xl-4",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
@@ -2240,19 +804,17 @@
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$",
-              "message": "Maxmium Length is 50"
+              "message": "Maxmium Length is 50",
+              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "proposerAddress2",
           "label": "Correspondence Address 2",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-6 col-xl-4",
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
@@ -2260,1537 +822,368 @@
             },
             {
               "validatorName": "pattern",
-              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$",
-              "message": "Maxmium Length is 50"
+              "message": "Maxmium Length is 50",
+              "pattern": "^[a-zA-Z0-9,:/ -]{1,50}$"
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "proposerAddress3",
           "label": "Correspondence Address 3",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-6 col-xl-4"
-        },
-        {
-          "name": "correspondentPincode",
-          "label": "Pincode",
-          "visibleLabel": true,
-          "visible": true,
-          "type": "number",
-          "onChangeMethod": "getCityStateByPinByCorressponding",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "validators": [
-            {
-              "validatorName": "required",
-              "required": true,
-              "message": "Pincode is required field"
-            },
-            {
-              "validatorName": "pattern",
-              "pattern": "^[1-9][0-9]{5}$",
-              "message": "Pincode is not valid"
-            }
-          ]
-        },
-        {
-          "name": "correspondingCity",
-          "label": "City",
-          "class": "col-12 col-md-4 col-lg-4",
-          "disabled": true,
-          "visible": true,
-          "visibleLabel": true,
-          "value": "",
-          "type": "text"
-        },
-        {
-          "name": "correspondingState",
-          "label": "State",
-          "class": "col-12 col-md-4",
-          "visibleLabel": true,
-          "disabled": true,
-          "visible": true,
-          "value": "",
-          "type": "text"
-        },
-        {
-          "name": "horizontalLine",
-          "type": "line",
-          "visible": true,
-          "class": "custom-line"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "sumInsured",
           "label": "Select Sum Insured for Family",
           "visibleLabel": true,
-          "visible": false,
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [],
+          "type_": "select",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Sum Insured is required field"
+              "message": "Sum Insured is required field",
+              "required": true
             }
-          ]
+          ],
+          "visible": true
         },
         {
           "name": "zone",
           "label": "Zone",
-          "class": "col-12 col-md-6 col-lg-3",
-          "visible": false,
           "visibleLabel": true,
-          "disabled": true,
-          "value": "",
-          "type": "text"
-        },
-        {
-          "name": "zoneValue",
-          "label": "Zone",
-          "class": "col-12 col-md-6 col-lg-4",
-          "visibleLabel": true,
-          "visible": false,
-          "disabled": true,
-          "value": "",
-          "type": "select",
-          "options": []
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "addMembers",
           "label": "Add Members",
-          "type": "paragraph",
           "visibleLabel": true,
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-4 addMember"
+          "type_": "paragraph",
+          "visible": true
         },
         {
           "name": "insureMem",
-          "visibleLabel": true,
           "label": "Who do you want to insure?",
-          "type": "paragraph",
-          "visible": true,
-          "class": "col-12 col-md-6 col-lg-6 insureMember"
+          "visibleLabel": true,
+          "type_": "paragraph",
+          "visible": true
         },
         {
           "name": "numberOfInsuredMembers",
           "label": "Number of Insured Members",
           "visibleLabel": false,
-          "visible": false,
-          "type": "text",
-          "class": "",
-          "value": 0,
+          "type_": "text",
           "validators": [
             {
               "validatorName": "required",
-              "required": true,
-              "message": "Select Relationhip"
+              "message": "Select Relationhip",
+              "required": true
             }
-          ]
-        },
-        {
-          "name": "insuredMembers",
-          "label": "Number of Insured Members",
-          "visibleLabel": false,
-          "visible": true,
-          "type": "multiSelectCheckbox",
-          "methodName": "getProposerRelationship",
-          "class": "",
-          "idProperty": "insuredMemberDetails",
-          "text": "insuredMemberDetails",
-          "value": "",
-          "selectCheckboxOptions": [],
-          "validators": [
-            {
-              "validatorName": "required",
-              "required": true,
-              "message": "Minimum number of selected member should be "
-            }
-          ]
-        },
-        {
-          "name": "nomineeFirstName",
-          "label": "First Name",
-          "visibleLabel": false,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-4"
-        },
-        {
-          "name": "nomineeMiddleName",
-          "label": "Middle Name",
-          "visibleLabel": false,
-          "visible": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
-        },
-        {
-          "name": "nomineeLastName",
-          "label": "Last Name",
-          "visibleLabel": false,
-          "visible": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
+          ],
+          "visible": true
         },
         {
           "name": "nomineeDob",
           "label": "Date of Birth",
           "visibleLabel": false,
-          "visible": false,
-          "type": "date",
-          "onChangeMethod": "checkNomineeAge",
-          "dependentControls": [
-            "nomineeAge",
-            "appointeeName",
-            "appointeeContactNo",
-            "appointeeRelationWithNominee"
-          ],
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "date",
+          "visible": true
         },
         {
           "name": "nomineeAge",
           "label": "Nominee Age",
           "visibleLabel": false,
-          "disabled": true,
-          "type": "number",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-4 col-lg-4"
+          "type_": "number",
+          "visible": true
         },
         {
           "name": "nomineeRelationWithProposer",
           "label": "Relation with Proposer",
           "visibleLabel": false,
-          "type": "select",
-          "visible": false,
-          "getAllOption": "getNomineeRelationShip",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": []
-        },
-        {
-          "name": "Gender",
-          "label": "Gender",
-          "visibleLabel": false,
-          "type": "select",
-          "class": "col-12 col-md-4 control",
-          "value": "",
-          "visible": false,
-          "options": [
-            {
-              "id": 1,
-              "name": "Male",
-              "value": "M"
-            },
-            {
-              "id": 2,
-              "name": "Female",
-              "value": "F"
-            }
-          ]
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "nomineeAddress",
           "label": "Nominee Address",
           "visibleLabel": false,
-          "visible": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "nomineeContactNo",
           "label": "Nominee Contact Details",
           "visibleLabel": false,
-          "visible": false,
-          "value": "",
-          "type": "phonenumber",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "phonenumber",
+          "visible": true
         },
         {
           "name": "accountNumber",
           "label": "Account No",
-          "visible": false,
           "visibleLabel": false,
-          "type": "password",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "restrictKeyPress": true
+          "type_": "password",
+          "visible": true
         },
         {
           "name": "confAccountNumber",
           "label": "Confirm Account No",
-          "visible": false,
           "visibleLabel": false,
-          "type": "number",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "number",
+          "visible": true
         },
         {
           "name": "accountType",
           "label": "Account Type",
-          "visible": false,
           "visibleLabel": false,
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": [
-            {
-              "id": 1,
-              "name": "Saving",
-              "value": "02",
-              "selected": true
-            },
-            {
-              "id": 2,
-              "name": "Current",
-              "value": "01",
-              "selected": false
-            }
-          ]
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "bankName",
           "label": "Bank Name",
-          "visible": false,
           "visibleLabel": false,
-          "getAllOption": "getAllBankDetails",
-          "onChangeMethod": "getBankCity",
-          "otherControlName": "bankCity",
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": []
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "bankCity",
           "label": "Bank City",
-          "visible": false,
           "visibleLabel": false,
-          "onChangeMethod": "getBranchDetails",
-          "otherControlName": "bankBranch",
-          "type": "select",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": []
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "bankBranch",
           "label": "Bank Branch",
-          "visible": false,
           "visibleLabel": false,
-          "type": "select",
-          "onChangeMethod": "setIfscCode",
-          "otherControlName": "ifscCode",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "options": []
+          "type_": "select",
+          "visible": true
         },
         {
           "name": "ifscCode",
           "label": "IFSC Code",
           "visibleLabel": false,
-          "visible": false,
-          "type": "text",
-          "value": "",
-          "class": "col-12 col-md-6 col-lg-4",
-          "onChangeMethod": "pennyDrop",
-          "dependentControls": [
-            "pennyBtn"
-          ]
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "micrCode",
           "label": "MICR Code",
           "visibleLabel": false,
-          "disabled": true,
-          "type": "text",
-          "value": "",
-          "visible": false,
-          "class": "col-12 col-md-6 col-lg-4"
+          "type_": "text",
+          "visible": true
         }
-      ]
+      ],
+      "visibleLabel": true,
+      "class_": "col-md-12 section-title"
     },
     {
       "sectionTitle": "Insured Member Details",
-      "visibleLabel": true,
       "visible": false,
-      "class": "section-title",
+      "isVisible": true,
       "formControls": [
         {
           "name": "insuredMemberDetails",
           "label": "Insured Member Details",
           "visibleLabel": false,
-          "type": "details",
-          "value": 1,
-          "visible": false,
-          "class": "col-md-12 ",
-          "dynamicControls": [
-            [
-              {
-                "name": "relationshipType",
-                "visibleLabel": false,
-                "label": "Relationship Type",
-                "value": "",
-                "class": "col-12 col-md-2",
-                "type": "text",
-                "visible": false
-              },
-              {
-                "name": "relation",
-                "visibleLabel": true,
-                "label": "Relation",
-                "value": "",
-                "class": "col-12 col-md-2",
-                "type": "text",
-                "visible": true,
-                "disabled": true,
-                "otherControlName": "memberAge",
-                "methodName": "setupRelationshipTypeValidation",
-                "validationRules": [
-                  {
-                    "type": "adult",
-                    "validatorName": "pattern",
-                    "pattern": "^(1[8-9]|[2-9][0-9]|1[0-1][0-9]|120)$",
-                    "message": "Provide between 18 - 120."
-                  },
-                  {
-                    "type": "child",
-                    "validatorName": "pattern",
-                    "pattern": "^(2[0-5]|1[0-9]|[5-9])$",
-                    "message": "Provide between 4 - 25 years."
-                  }
-                ]
-              },
-              {
-                "name": "memberRelationCode",
-                "label": "Relation Code",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "memberdob",
-                "label": "Date of Birth",
-                "visibleLabel": true,
-                "type": "date",
-                "minDateLength": "pastDate",
-                "maxDateLength": "currentDate",
-                "visible": true,
-                "value": "",
-                "dependentControls": [
-                  "memberAge"
-                ],
-                "class": "col-12 col-md-3",
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "DOB is required field."
-                  },
-                  {
-                    "validatorName": "pattern",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    "message": "DOB should be in dd/mm/yyyy format."
-                  }
-                ]
-              },
-              {
-                "name": "memberAge",
-                "label": "Age",
-                "visibleLabel": true,
-                "disabled": false,
-                "visible": true,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-3",
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "Age is required field."
-                  },
-                  {
-                    "validatorName": "pattern",
-                    "pattern": "^(1[8-9]|[2-9][0-9]|1[0-1][0-9]|120)$",
-                    "message": "Provide between 18 to 120."
-                  }
-                ]
-              },
-              {
-                "name": "firstName",
-                "label": "Last Name",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "visible": false,
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "lastName",
-                "label": "Last Name",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "visible": false,
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "middleName",
-                "label": "Middle Name",
-                "visibleLabel": true,
-                "type": "text",
-                "value": "",
-                "visible": false,
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "mobileNumber",
-                "label": "Mobile Number",
-                "visibleLabel": true,
-                "visible": false,
-                "type": "phonenumber",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "weight",
-                "label": "Weight(In Kgs)",
-                "visible": false,
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "height",
-                "label": "Enter Height ft",
-                "visibleLabel": false,
-                "type": "text",
-                "visible": false,
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-2"
-              },
-              {
-                "name": "heightInches",
-                "label": "Enter Height in",
-                "visibleLabel": false,
-                "visible": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-2"
-              },
-              {
-                "name": "emailId",
-                "label": "Email Address",
-                "visible": false,
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "memberGender",
-                "label": "Gender",
-                "visibleLabel": true,
-                "visible": true,
-                "type": "select",
-                "value": "",
-                "class": "col-12 col-md-3",
-                "options": [
-                  {
-                    "name": "Male",
-                    "value": "M"
-                  },
-                  {
-                    "name": "Female",
-                    "value": "F"
-                  },
-                  {
-                    "name": "Others",
-                    "value": "O"
-                  }
-                ],
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "Gender is required field."
-                  }
-                ]
-              },
-              {
-                "name": "pincode",
-                "label": "Pincode",
-                "visibleLabel": true,
-                "type": "text",
-                "visible": true,
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-3",
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "Pincode is required field."
-                  },
-                  {
-                    "validatorName": "pattern",
-                    "pattern": "^[1-9][0-9]{5}$",
-                    "message": "Pincode is not valid only 6 digits accepted"
-                  }
-                ]
-              },
-              {
-                "name": "planType",
-                "label": "Plan Type",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "Multi Individual",
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "memberIndex",
-                "label": "Member Index",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "zone",
-                "label": "Zone",
-                "class": "col-12 col-md-6 col-lg-3",
-                "visibleLabel": true,
-                "visible": false,
-                "disabled": true,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "zoneValue",
-                "label": "Zone",
-                "class": "col-12 col-md-2",
-                "visibleLabel": true,
-                "visible": true,
-                "disabled": true,
-                "value": "",
-                "type": "select",
-                "options": []
-              },
-              {
-                "name": "upgradableZones",
-                "label": "Upgradable Zones",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "sumInsured",
-                "label": "Sum Insured",
-                "visibleLabel": true,
-                "type": "select",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-3",
-                "visible": true,
-                "options": [],
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "Sum Insured is required field"
-                  }
-                ]
-              },
-              {
-                "name": "upgradableSumInsured",
-                "label": "Upgradable Sum Insured",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-3",
-                "visible": false
-              },
-              {
-                "name": "state",
-                "label": "State",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "city",
-                "label": "City",
-                "class": "col-12 col-md-6 col-lg-3",
-                "disabled": true,
-                "visibleLabel": true,
-                "visible": false,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "memberRoomCategory",
-                "label": "Room Category",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "UPTOSI",
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "covers",
-                "label": "Add On Covers",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "subControls": [],
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "preFix",
-                "label": "Salutation",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "select",
-                "options": [
-                  {
-                    "value": "Mr",
-                    "name": "Mr"
-                  },
-                  {
-                    "value": "Mrs",
-                    "name": "Mrs"
-                  },
-                  {
-                    "value": "Ms",
-                    "name": "Ms"
-                  },
-                  {
-                    "value": "Dr",
-                    "name": "Dr"
-                  },
-                  {
-                    "value": "Mx",
-                    "name": "Mx"
-                  },
-                  {
-                    "value": "Miss",
-                    "name": "Miss"
-                  },
-                  {
-                    "value": "Others",
-                    "name": "Others"
-                  }
-                ],
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "productMemberDesignation",
-                "label": "occupation",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "options": [],
-                "type": "select",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "natureOfDutyCode",
-                "label": "Duty Code",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "occupationCode",
-                "label": "Duty Code",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "chronicDiseases",
-                "label": "Chronic Diseases",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "isChronic",
-                "label": "Chronic Diseases",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "NO",
-                "type": "text"
-              },
-              {
-                "name": "nationality",
-                "label": "Nationality",
-                "visibleLabel": false,
-                "type": "select",
-                "visible": false,
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4",
-                "options": [
-                  {
-                    "id": "1",
-                    "value": "Indian",
-                    "name": "Indian",
-                    "selected": true
-                  },
-                  {
-                    "id": "2",
-                    "value": "Non Resident Indian",
-                    "name": "Non Resident Indian",
-                    "selected": false
-                  },
-                  {
-                    "id": "3",
-                    "value": "Foreign National with Indian Origin",
-                    "name": "Foreign National with Indian Origin",
-                    "selected": false
-                  },
-                  {
-                    "id": "4",
-                    "value": "Person of Indian Origin",
-                    "name": "Person of Indian Origin",
-                    "selected": false
-                  }
-                ]
-              },
-              {
-                "name": "abhaIdDeclaration",
-                "label": "I/We hereby agree and confirm that I have provided the correct ABHA id with ABHICL and I hereby consent and agree and authorise ABHICL to share my medical history and records with the insurance companies/TPA as registered with IRDAI for the purpose of insurance and/or claims during the tenure of the policy. I further consent and agree and authorise ABHICL to use,download and store the medical records as may be necessary for the purpose of insurance.",
-                "type": "checkbox",
-                "visibleLabel": false,
-                "value": "",
-                "visible": false,
-                "class": "col-md-12 col-md-6 col-lg-12 acceptTermsCheck"
-              }
-            ]
-          ]
-        },
-        {
-          "name": "insuredMemberDetails",
-          "label": "Insured Member Details",
-          "visibleLabel": false,
-          "type": "details",
-          "value": 1,
-          "visible": false,
-          "class": "col-md-12 ",
-          "dynamicControls": [
-            [
-              {
-                "name": "relationshipType",
-                "visibleLabel": false,
-                "label": "Relationship Type",
-                "value": "",
-                "class": "col-12 col-md-2",
-                "type": "text",
-                "visible": false,
-                "disabled": false
-              },
-              {
-                "name": "relation",
-                "visibleLabel": false,
-                "label": "Relation",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-2",
-                "type": "text",
-                "otherControlName": "memberAge",
-                "methodName": "setupRelationshipTypeValidation",
-                "visible": true,
-                "disabled": true,
-                "validationRules": [
-                  {
-                    "type": "adult",
-                    "validatorName": "pattern",
-                    "pattern": "^(1[8-9]|[2-9][0-9]|1[0-1][0-9]|120)$",
-                    "message": "Provide between 18 - 120years."
-                  },
-                  {
-                    "type": "child",
-                    "validatorName": "pattern",
-                    "pattern": "^(1?[0-9]|2[0-5]|(9[1-9]|[1-2][0-9][0-9]|3[0-5][0-9]|36[0-4])days)$",
-                    "message": "Provide between 91 days - 25years."
-                  }
-                ]
-              },
-              {
-                "name": "memberRelationCode",
-                "label": "Relation Code",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "memberdob",
-                "label": "Date of Birth",
-                "visibleLabel": true,
-                "type": "date",
-                "minDateLength": "pastDate",
-                "maxDateLength": "currentDate",
-                "value": "",
-                "visible": true,
-                "disabled": false,
-                "dependentControls": [
-                  "memberAge"
-                ],
-                "class": "col-12 col-md-6 col-lg-3",
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "DOB is required field."
-                  },
-                  {
-                    "validatorName": "pattern",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    "message": "DOB should be in dd/mm/yyyy format."
-                  }
-                ]
-              },
-              {
-                "name": "memberAge",
-                "label": "Age",
-                "visibleLabel": true,
-                "type": "text",
-                "value": "",
-                "disabled": false,
-                "visible": true,
-                "class": "col-12 col-md-6 col-lg-3",
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "Age is required field."
-                  },
-                  {
-                    "validatorName": "pattern",
-                    "pattern": "^(1[8-9]|[2-9][0-9]|1[0-1][0-9]|120)$",
-                    "message": "Provide between 18-120."
-                  }
-                ]
-              },
-              {
-                "name": "memberGender",
-                "label": "Gender",
-                "visibleLabel": true,
-                "type": "select",
-                "value": "",
-                "visible": true,
-                "disabled": false,
-                "class": "col-12 col-md-6 col-lg-3",
-                "options": [
-                  {
-                    "name": "Male",
-                    "value": "M"
-                  },
-                  {
-                    "name": "Female",
-                    "value": "F"
-                  },
-                  {
-                    "name": "Others",
-                    "value": "O"
-                  }
-                ],
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "Gender is required field."
-                  }
-                ]
-              },
-              {
-                "name": "planType",
-                "label": "Plan Type",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "Family Floater",
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "memberIndex",
-                "label": "Member Index",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "firstName",
-                "label": "Last Name",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "visible": false,
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "middleName",
-                "label": "Middle Name",
-                "visible": false,
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "lastName",
-                "label": "Last Name",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "visible": false,
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "weight",
-                "label": "Weight(In Kgs)",
-                "visible": false,
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "height",
-                "label": "Enter Height ft",
-                "visibleLabel": false,
-                "type": "text",
-                "visible": false,
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-2"
-              },
-              {
-                "name": "heightInches",
-                "label": "Enter Height in",
-                "visibleLabel": false,
-                "visible": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-2"
-              },
-              {
-                "name": "mobileNumber",
-                "label": "Mobile Number",
-                "visibleLabel": false,
-                "visible": false,
-                "type": "phonenumber",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "emailId",
-                "label": "Email Address",
-                "visible": false,
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "memberRoomCategory",
-                "label": "Room Category",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "UPTOSI",
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "memberGender",
-                "label": "Gender",
-                "visibleLabel": false,
-                "visible": false,
-                "type": "select",
-                "value": "",
-                "class": "col-12 col-md-3",
-                "options": [
-                  {
-                    "name": "Male",
-                    "value": "M"
-                  },
-                  {
-                    "name": "Female",
-                    "value": "F"
-                  },
-                  {
-                    "name": "Others",
-                    "value": "O"
-                  }
-                ]
-              },
-              {
-                "name": "sumInsured",
-                "label": "Sum Insured",
-                "visibleLabel": false,
-                "type": "select",
-                "value": "",
-                "class": "col-12 col-md-3",
-                "visible": false,
-                "options": [],
-                "validators": [
-                  {
-                    "validatorName": "required",
-                    "required": true,
-                    "message": "Sum Insured is required field."
-                  }
-                ]
-              },
-              {
-                "name": "upgradableSumInsured",
-                "label": "Upgradable Sum Insured",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-3",
-                "visible": false
-              },
-              {
-                "name": "covers",
-                "label": "Add On Covers",
-                "visibleLabel": false,
-                "type": "text",
-                "value": "",
-                "subControls": [],
-                "class": "",
-                "visible": false
-              },
-              {
-                "name": "pincode",
-                "label": "Pincode",
-                "visibleLabel": true,
-                "visible": false,
-                "type": "number",
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4"
-              },
-              {
-                "name": "preFix",
-                "label": "Salutation",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "select",
-                "options": [
-                  {
-                    "value": "Mr",
-                    "name": "Mr"
-                  },
-                  {
-                    "value": "Mrs",
-                    "name": "Mrs"
-                  },
-                  {
-                    "value": "Ms",
-                    "name": "Ms"
-                  },
-                  {
-                    "value": "Dr",
-                    "name": "Dr"
-                  },
-                  {
-                    "value": "Mx",
-                    "name": "Mx"
-                  },
-                  {
-                    "value": "Miss",
-                    "name": "Miss"
-                  },
-                  {
-                    "value": "Others",
-                    "name": "Others"
-                  }
-                ],
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "zone",
-                "label": "Zone",
-                "class": "col-12 col-md-6 col-lg-3",
-                "visibleLabel": true,
-                "visible": false,
-                "disabled": true,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "zoneValue",
-                "label": "Zone",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "disabled": true,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "state",
-                "label": "State",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "city",
-                "label": "City",
-                "class": "col-12 col-md-6 col-lg-3",
-                "disabled": true,
-                "visibleLabel": true,
-                "visible": false,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "productMemberDesignation",
-                "label": "occupation",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "options": [],
-                "type": "select",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "natureOfDutyCode",
-                "label": "Duty Code",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "occupationCode",
-                "label": "Duty Code",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text",
-                "class": "col-12 col-md-6 col-lg-3"
-              },
-              {
-                "name": "chronicDiseases",
-                "label": "Chronic Diseases",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "type": "text"
-              },
-              {
-                "name": "isChronic",
-                "label": "Chronic Diseases",
-                "class": "col-12 col-md-2",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "NO",
-                "type": "text"
-              },
-              {
-                "name": "nationality",
-                "label": "Nationality",
-                "visibleLabel": false,
-                "type": "select",
-                "visible": false,
-                "value": "",
-                "class": "col-12 col-md-6 col-lg-4",
-                "options": [
-                  {
-                    "id": "1",
-                    "value": "Indian",
-                    "name": "Indian",
-                    "selected": true
-                  },
-                  {
-                    "id": "2",
-                    "value": "Non Resident Indian",
-                    "name": "Non Resident Indian",
-                    "selected": false
-                  },
-                  {
-                    "id": "3",
-                    "value": "Foreign National with Indian Origin",
-                    "name": "Foreign National with Indian Origin",
-                    "selected": false
-                  },
-                  {
-                    "id": "4",
-                    "value": "Person of Indian Origin",
-                    "name": "Person of Indian Origin",
-                    "selected": false
-                  }
-                ]
-              },
-              {
-                "name": "abhaIdDeclaration",
-                "label": "I/We hereby agree and confirm that I have provided the correct ABHA id with ABHICL and I hereby consent and agree and authorise ABHICL to share my medical history and records with the insurance companies/TPA as registered with IRDAI for the purpose of insurance and/or claims during the tenure of the policy. I further consent and agree and authorise ABHICL to use,download and store the medical records as may be necessary for the purpose of insurance.",
-                "type": "checkbox",
-                "visibleLabel": false,
-                "visible": false,
-                "value": "",
-                "class": "col-md-12 col-md-6 col-lg-12 acceptTermsCheck"
-              }
-            ]
-          ]
+          "type_": "details",
+          "visible": true
         }
-      ]
+      ],
+      "visibleLabel": true,
+      "class_": "section-title"
     },
     {
       "sectionTitle": "Policy Information",
-      "visibleLabel": true,
       "visible": false,
-      "class": "col-md-12 section-title",
+      "isVisible": true,
       "formControls": [
         {
           "name": "transactionType",
           "label": "Transaction Type",
           "visibleLabel": true,
-          "type": "text",
-          "value": "Policy",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "premiumMode",
           "label": "Mode of Premium payment",
           "visibleLabel": true,
-          "type": "text",
-          "value": "Annual",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         }
-      ]
+      ],
+      "visibleLabel": true,
+      "class_": "col-md-12 section-title"
     },
     {
       "sectionTitle": "Business Source Information",
-      "visibleLabel": true,
       "visible": false,
-      "class": "col-md-12 section-title",
-      "postControlCreationMethod": "getBaseCallerDetails",
+      "isVisible": true,
       "formControls": [
         {
           "name": "baseCallerId",
           "label": "Base Caller ID",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "avCode",
           "label": "AV ID",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "imdCode",
           "label": "ABHI IMD Code",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "axisProcess",
           "label": "Axis Process",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "tlid",
           "label": "TL/UM ID",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "axisLocation",
           "label": "Axis Location",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "baseCallerName",
           "label": "Base Caller Name",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "avName",
           "label": "AV Name",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "spCode",
           "label": "SP Code",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "vendor",
           "label": "Axis Vendor",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "tlName",
           "label": "TL/UM NAME",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         },
         {
           "name": "axisLob",
           "label": "Axis LOB",
           "visibleLabel": true,
-          "type": "text",
-          "value": "",
-          "visible": true,
-          "disabled": true,
-          "class": "col-12 col-md-6 col-lg-3"
+          "type_": "text",
+          "visible": true
         }
-      ]
+      ],
+      "visibleLabel": true,
+      "class_": "col-md-12 section-title"
     },
     {
       "sectionTitle": "Bottom Section",
       "visible": true,
-      "class": "section-title bottom-section",
+      "isVisible": true,
       "formControls": [
         {
           "name": "plandetails",
           "label": "Plan Details",
           "visibleLabel": true,
-          "type": "summary",
-          "value": "",
-          "class": "col-md-12",
-          "visible": true,
-          "disabled": true
+          "type_": "summary",
+          "visible": true
         },
         {
           "name": "productName",
           "label": "Product Name",
           "visibleLabel": false,
-          "visible": true,
-          "disabled": true,
-          "type": "boldtext",
-          "class": "col-12 col-md-6 col-lg-3 bottom-product",
-          "value": "",
-          "text": "Aditya Birla Health Insurance"
+          "type_": "boldtext",
+          "visible": true
         },
         {
           "name": "totalPremium",
           "label": "Total Premium/Incl tax",
           "visibleLabel": true,
-          "visible": true,
-          "type": "boldtext",
-          "class": "col-12 col-md-6 col-lg-3 bottom-total-premium",
-          "value": "",
-          "disabled": true
+          "type_": "boldtext",
+          "visible": true
         },
         {
           "name": "proposalNumber",
           "label": "Reference Number",
           "visibleLabel": true,
-          "visible": true,
-          "type": "boldtext",
-          "class": "col-12 col-md-6 col-lg-3",
-          "value": "",
-          "disabled": true
+          "type_": "boldtext",
+          "visible": true
         },
         {
           "name": "recalculate",
           "label": "Calculate",
           "visibleLabel": false,
-          "visible": false,
-          "type": "button",
-          "class": "col-12 col-md-6 col-lg-2 next-btn",
-          "methodName": "calculatePremium"
+          "type_": "button",
+          "visible": true
         },
         {
           "name": "next",
           "label": "Next",
           "visibleLabel": false,
-          "visible": true,
-          "type": "button",
-          "class": "col-12 col-md-6 col-lg-2 next-btn",
-          "methodName": "onSubmit"
+          "type_": "button",
+          "visible": true
         }
-      ]
+      ],
+      "visibleLabel": true,
+      "class_": "section-title bottom-section"
+    },
+    {
+      "sectionTitle": "Additional",
+      "visible": true,
+      "isVisible": true,
+      "formControls": [
+        {
+          "name": "information",
+          "label": "Information",
+          "visibleLabel": true,
+          "type_": "text",
+          "validators": [
+            {
+              "validatorName": "minLength",
+              "message": "Information must be at least 50 characters long",
+              "required": true,
+              "minLength": 50
+            }
+          ],
+          "visible": true
+        }
+      ],
+      "visibleLabel": true
     }
   ]
 }
