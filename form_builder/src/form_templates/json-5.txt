@@ -1,97 +1,97 @@
 {
-  "form": {
-    "sections": [
-      {
-        "sectionName": "Proposer Personal Information",
-        "sectionId": "personalInfo",
-        "fields": [
-          {
-            "fieldName": "First Name",
-            "fieldId": "firstName",
-            "type": "text",
-            "label": "First Name",
-            "validators": [
-              {
-                "type": "required",
-                "message": "First Name is required."
-              }
-            ],
-            "visibilityRules": {
-              "dependentField": "age",
-              "visibilityCondition": ">= 18"
+  "formTitle": "Untitled Form",
+  "saveBtnTitle": "Save",
+  "resetBtnTitle": "Reset",
+  "themeFile": "default_theme.json",
+  "formSections": [
+    {
+      "sectionTitle": "Proposer Personal Information",
+      "visible": true,
+      "isVisible": true,
+      "formControls": [
+        {
+          "name": "firstName",
+          "label": "First Name",
+          "visibleLabel": true,
+          "type_": "text",
+          "validators": [
+            {
+              "validatorName": "required",
+              "message": "First Name is required.",
+              "required": true
             }
-          },
-          {
-            "fieldName": "Last Name",
-            "fieldId": "lastName",
-            "type": "text",
-            "label": "Last Name",
-            "validators": [
-              {
-                "type": "required",
-                "message": "Last Name is required."
-              }
-            ]
-          },
-          {
-            "fieldName": "Date of Birth",
-            "fieldId": "dob",
-            "type": "date",
-            "label": "Date of Birth",
-            "validators": [
-              {
-                "type": "required",
-                "message": "Date of Birth is required."
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "sectionName": "ID Proof",
-        "sectionId": "idProof",
-        "fields": [
-          {
-            "fieldName": "ID Proof Type",
-            "fieldId": "idProofType",
-            "type": "select",
-            "label": "Select ID Proof Type",
-            "options": [
-              {
-                "value": "Aadhar",
-                "label": "Aadhar"
-              },
-              {
-                "value": "Passport",
-                "label": "Passport"
-              }
-            ],
-            "validators": [
-              {
-                "type": "required",
-                "message": "ID Proof Type is required."
-              }
-            ]
-          },
-          {
-            "fieldName": "ID Proof Number",
-            "fieldId": "idProofNumber",
-            "type": "text",
-            "label": "ID Proof Number",
-            "validators": [
-              {
-                "type": "required",
-                "message": "ID Proof Number is required."
-              },
-              {
-                "type": "pattern",
-                "value": "^[0-9]{12}$",
-                "message": "Invalid ID Proof Number format."
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }
+          ],
+          "visible": true
+        },
+        {
+          "name": "lastName",
+          "label": "Last Name",
+          "visibleLabel": true,
+          "type_": "text",
+          "validators": [
+            {
+              "validatorName": "required",
+              "message": "Last Name is required.",
+              "required": true
+            }
+          ],
+          "visible": true
+        }
+      ],
+      "visibleLabel": true
+    },
+    {
+      "sectionTitle": "ID Proof",
+      "visible": true,
+      "isVisible": true,
+      "formControls": [
+        {
+          "name": "idProofType",
+          "label": "Select ID Proof Type",
+          "visibleLabel": true,
+          "type_": "select",
+          "validators": [
+            {
+              "validatorName": "required",
+              "message": "ID Proof Type is required.",
+              "required": true
+            }
+          ],
+          "visible": true
+        },
+        {
+          "name": "idProofNumber",
+          "label": "ID Proof Number",
+          "visibleLabel": true,
+          "type_": "text",
+          "validators": [
+            {
+              "validatorName": "required",
+              "message": "ID Proof Number is required.",
+              "required": true
+            },
+            {
+              "validatorName": "pattern",
+              "message": "Invalid ID Proof Number format.",
+              "pattern": "^[0-9]{12}$"
+            }
+          ],
+          "visible": true
+        },
+        {
+          "name": "passport",
+          "label": "Passport",
+          "visibleLabel": true,
+          "type_": "text",
+          "validators": [
+            {
+              "required": true
+            }
+          ],
+          "visible": true
+        }
+      ],
+      "visibleLabel": true
+    }
+  ]
 }

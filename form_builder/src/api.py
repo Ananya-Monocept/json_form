@@ -35,6 +35,13 @@ class TemplateRequestModel(BaseModel):
     template_name: str
 
 
+def to_camel_case(label: str) -> str:
+    """Convert a label to camelCase."""
+    words = label.strip().lower().split()
+    if not words:
+        return ""
+    return words[0] + "".join(word.capitalize() for word in words[1:])
+
 def clean_null_values(data):
         """Recursively remove all null values from dictionaries and lists."""
         if isinstance(data, dict):
@@ -273,16 +280,20 @@ class FormBuilder:
         return {"status": "success", "section_id": section_id}
 
     def add_control(self, sectionTitle: str, controlType: str, label: str, required: bool = False, validation: Optional[Dict] = None) -> Dict:
-        """Add a new control to a section. Prevents duplicates based on label."""
+        """Add a new control to a section or update an existing control's label."""
         for section in self.form.formSections:
             if section.sectionTitle == sectionTitle:
-                # Check for duplicate controls with the same label
+                # Check if a control with the same name or label already exists
                 for existing_control in section.formControls:
-                    if existing_control.label.lower() == label.lower():
-                        return {"status": "warning", "message": f"Control with label '{label}' already exists in section '{sectionTitle}'"}
+                    if existing_control.name == label or existing_control.label.lower() == label.lower():
+                        # Control exists: Update the label but keep the name unchanged
+                        existing_control.label = label
+                        return {"status": "success", "message": f"Label updated to '{label}' for control '{existing_control.name}'"}
                 
+                # Control does not exist: Add a new control
+                name = to_camel_case(label)  # Generate name as camelCase of the label
                 control = IFormControl(
-                    name=f"control_{len(section.formControls)}",
+                    name=name,
                     label=label,
                     visibleLabel=True,
                     type_=controlType,
@@ -895,6 +906,9 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         - Make sure to specify all required parameters for each tool call
         - Be precise with section titles and control names/labels
 
+        When using add_control:
+        - If the control already exists (by name or label), only the label will be updated, and the name will remain unchanged.
+        - If the control does not exist, a new control will be added with the name set to the camelCase version of the label.
         Example response format:
         [
             {{
