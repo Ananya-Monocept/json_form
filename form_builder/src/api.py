@@ -335,22 +335,30 @@ class FormBuilder:
         self.form.formSections.append(new_section)
         return {"status": "success", "section_id": section_id}
 
-    def add_control(self, sectionTitle: str, controlType: str, label: str, required: bool = False, validation: Optional[Dict] = None) -> Dict:
-        """Add a new control to a section or update an existing control's label."""
+    def add_control(self, sectionTitle: str, controlType: str, label: str = None, name: str = None, required: bool = False, validation: Optional[Dict] = None) -> Dict:
+        """
+        Add a new control to a section or update an existing control's label or name.
+        - If 'label' is provided, update the label but keep the name unchanged.
+        - If 'name' is provided, update the name but keep the label unchanged.
+        """
         for section in self.form.formSections:
             if section.sectionTitle == sectionTitle:
                 # Check if a control with the same name or label already exists
                 for existing_control in section.formControls:
-                    if existing_control.name == label or existing_control.label.lower() == label.lower():
-                        # Control exists: Update the label but keep the name unchanged
-                        existing_control.label = label
-                        return {"status": "success", "message": f"Label updated to '{label}' for control '{existing_control.name}'"}
-                
+                    if existing_control.name == name or existing_control.label.lower() == label.lower():
+                        # Control exists: Update the label or name independently
+                        if label is not None:
+                            existing_control.label = label
+                        if name is not None:
+                            existing_control.name = name
+                        return {"status": "success", "message": f"Updated control '{existing_control.name}'"}
+
                 # Control does not exist: Add a new control
-                name = to_camel_case(label)  # Generate name as camelCase of the label
+                new_name = name or to_camel_case(label)  # Use provided name or generate from label
+                new_label = label or name  # Use provided label or default to name
                 control = IFormControl(
-                    name=name,
-                    label=label,
+                    name=new_name,
+                    label=new_label,
                     visibleLabel=True,
                     type_=controlType,
                     validators=[IValidator(required=required, **(validation or {}))] if required or validation else None
@@ -963,7 +971,8 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         - Be precise with section titles and control names/labels
 
         When using add_control:
-        - If the control already exists (by name or label), only the label will be updated, and the name will remain unchanged.
+        - If the control already exists (by name or label):
+        - Only the requested field (label or name) will be updated, and the other field will remain unchanged.
         - If the control does not exist, a new control will be added with the name set to the camelCase version of the label.
         Example response format:
         [
