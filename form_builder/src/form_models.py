@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel
 
 class IValidator(BaseModel):
@@ -9,6 +9,10 @@ class IValidator(BaseModel):
     minLength: Optional[int] = None
     maxLength: Optional[int] = None
     email: Optional[str] = None
+
+class IDependentControl(BaseModel):
+    name: str
+    visibility: bool
 
 class IOptions(BaseModel):
     id: Optional[str]
@@ -24,11 +28,11 @@ class IRadioOption(BaseModel):
     name: str
     label: str
     value: Any
-    selected: Optional[bool]
-    year: Optional[str]
-    discount: Optional[str]
-    dependentControls: Optional[List[str]]
-    visible: bool
+    selected: Optional[bool] = False
+    year: Optional[str] = None
+    discount: Optional[str] = None
+    dependentControls: Optional[List[Dict[str, Union[str, bool]]]] = None  # Allow strings for 'name'
+    visible: bool = True
 
 class ISelectCheckboxOption(BaseModel):
     label: Optional[str]
@@ -198,7 +202,7 @@ class IFormControl(BaseModel):
     conditionalVisibility: Optional[IConditionalVisibility] = None
     popUpFormId: Optional[str] = None
     showDoneButton: Optional[bool] = None
-    dependentControls: Optional[List[str]] = None
+    dependentControls: Optional[List[IDependentControl]] = None
     toolTipText: Optional[str] = None
     isToolTipVisible: Optional[bool] = None
     imagesrc: Optional[str] = None

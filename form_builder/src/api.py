@@ -8,7 +8,7 @@ import re
 import os
 from pathlib import Path
 from langgraph.graph import START, END, Graph
-from form_models import IForm, IFormSections, IFormControl, IValidator
+from form_models import IForm, IFormSections, IFormControl, IValidator, IRadioOption, ISelectCheckboxOption, IImage, IAdditionalQuestion, IAdditionalQuestionOption
 from langchain_core.runnables.config import RunnableConfig
 from fastapi.middleware.cors import CORSMiddleware
 import traceback
@@ -53,6 +53,37 @@ def clean_null_values(data):
             ]
         return data
 
+def _transform_dependent_controls(data: Dict) -> None:
+    """
+    Transform dependentControls fields in the input data.
+    - Converts lists of strings into lists of dictionaries with 'name' and 'visibility' fields.
+    """
+    if isinstance(data, dict):
+        # Process each key-value pair in the dictionary
+        for key, value in data.items():
+            if key == "dependentControls" and isinstance(value, list):
+                # Transform dependentControls from list of strings to list of dictionaries
+                transformed_dependent_controls = []
+                for dep_control in value:
+                    if isinstance(dep_control, str):  # Handle strings
+                        transformed_dependent_controls.append({
+                            "name": dep_control,
+                            "visibility": True  # Default visibility
+                        })
+                    elif isinstance(dep_control, dict):  # Handle dictionaries
+                        if not all(key in dep_control for key in ["name", "visibility"]):
+                            raise ValueError(f"Invalid dependent control: {dep_control}. Each dependent control must have 'name' and 'visibility' fields.")
+                        transformed_dependent_controls.append(dep_control)
+                    else:
+                        raise ValueError(f"Invalid dependent control: {dep_control}. Expected a string or dictionary.")
+                data[key] = transformed_dependent_controls
+            elif isinstance(value, (dict, list)):
+                _transform_dependent_controls(value)
+    elif isinstance(data, list):
+        # Process each item in the list
+        for item in data:
+            if isinstance(item, (dict, list)):
+                _transform_dependent_controls(item)
 
 def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -264,13 +295,21 @@ def _transform_validators(data: Dict[str, Any]) -> None:
 
 
 def _transform_options(data: Dict[str, Any]) -> None:
-    """Transform options fields to match Pydantic model expectations."""
+    """
+    Transform options fields to match Pydantic model expectations.
+    """
     if isinstance(data, dict):
         if 'options' in data and isinstance(data['options'], list):
             for option in data['options']:
                 if isinstance(option, dict) and 'dependentControls' in option:
-                    if isinstance(option['dependentControls'], list) and all(isinstance(item, dict) for item in option['dependentControls']):
-                        option['dependentControls'] = option['dependentControls']
+                    if isinstance(option['dependentControls'], list):
+                        # Validate and transform dependent controls
+                        transformed_dependent_controls = []
+                        for dep_control in option['dependentControls']:
+                            if not isinstance(dep_control, dict) or "name" not in dep_control:
+                                raise ValueError(f"Invalid dependent control: {dep_control}. Each dependent control must have a 'name' field.")
+                            transformed_dependent_controls.append(dep_control["name"])
+                        option['dependentControls'] = transformed_dependent_controls
         for key, value in list(data.items()):
             if isinstance(value, (dict, list)):
                 _transform_options(value)
@@ -307,17 +346,29 @@ class FormBuilder:
     def set_expected_controls(self, count: int):
         """Set the expected number of controls to be added to the form"""
         self.expected_controls_count = count
-
+    
     def add_section(self, sectionTitle: str) -> Dict:
         """Add a new section to the form."""
+        # Normalize section title for comparison
+        normalized_title = sectionTitle.strip()
+        
         # Check if section already exists
+        existing_section = None
         for section in self.form.formSections:
-            if section.sectionTitle.lower() == sectionTitle.lower():
-                return {"status": "warning", "message": f"Section '{sectionTitle}' already exists"}
-                
+            if section.sectionTitle.lower() == normalized_title.lower():
+                existing_section = section
+                break
+        
+        if existing_section:
+            return {
+                "status": "success",  # Changed from "warning" to "success"
+                "message": f"Using existing section '{sectionTitle}'",
+                "section": existing_section
+            }
+        
         section_id = f"section_{len(self.form.formSections)}"
         new_section = IFormSections(
-            sectionTitle=sectionTitle,
+            sectionTitle=normalized_title,
             visible=True,
             apiEndpoint=None,
             controlTypeName=None,
@@ -335,36 +386,237 @@ class FormBuilder:
         self.form.formSections.append(new_section)
         return {"status": "success", "section_id": section_id}
 
-    def add_control(self, sectionTitle: str, controlType: str, label: str = None, name: str = None, required: bool = False, validation: Optional[Dict] = None) -> Dict:
+    def add_control(
+    self, 
+    sectionTitle: str, 
+    controlType: str, 
+    label: str = None, 
+    name: str = None, 
+    required: bool = False, 
+    validation: Optional[Dict] = None,
+    dependentControls: Optional[List[Dict[str, Any]]] = None,
+    radioOptions: Optional[List[Dict[str, Any]]] = None,
+    visibilityRules: Optional[Dict[str, Any]] = None,
+    visible: Optional[bool] = True
+) -> Dict:
         """
-        Add a new control to a section or update an existing control's label or name.
-        - If 'label' is provided, update the label but keep the name unchanged.
-        - If 'name' is provided, update the name but keep the label unchanged.
+        Add a new control to a section or update an existing control.
+        Args:
+            sectionTitle (str): Title of the section to add the control to
+            controlType (str): Type of control (text, radio, etc.)
+            label (str, optional): Label for the control
+            name (str, optional): Name identifier for the control
+            required (bool): Whether the control is required
+            validation (Dict, optional): Validation rules
+            dependentControls (List[Dict], optional): List of dependent controls
+            radioOptions (List[Dict], optional): Options for radio controls
+            visibilityRules (Dict, optional): Rules for conditional visibility
+            visible (bool, optional): Initial visibility state
         """
+        # Input validation
+        if not sectionTitle:
+            return {"error": "Section title is required"}
+        if not controlType:
+            return {"error": "Control type is required"}
+        if not label and not name:
+            return {"error": "Either label or name must be provided"}
+
+        # Normalize section title for case-insensitive comparison
+        normalized_title = sectionTitle.strip()
+        
+        # Find section (case-insensitive)
+        target_section = None
+        for section in self.form.formSections:
+            if section.sectionTitle.lower() == normalized_title.lower():
+                target_section = section
+                break
+        
+        # If section not found, try to create it
+        if not target_section:
+            section_result = self.add_section(normalized_title)
+            if section_result["status"] == "success":
+                target_section = self.form.formSections[-1]
+            else:
+                return {"error": f"Failed to create section '{normalized_title}'"}
+
+        # Now we have a valid section
+        try:
+            # Normalize control identifiers
+            new_name = name or to_camel_case(label)
+            new_label = label or name
+
+            # Check for existing control
+            for existing_control in target_section.formControls:
+                if (existing_control.name and existing_control.name == new_name) or \
+                (existing_control.label and existing_control.label.lower() == new_label.lower()):
+                    # Update existing control
+                    if label is not None:
+                        existing_control.label = new_label
+                    if name is not None:
+                        existing_control.name = new_name
+                    if dependentControls is not None:
+                        existing_control.dependentControls = dependentControls
+                        # Update dependent controls
+                        self._update_dependent_controls(target_section, existing_control.name, dependentControls)
+                    if radioOptions is not None:
+                        existing_control.radioOptions = [
+                            IRadioOption(
+                                name=opt["name"],
+                                label=opt["label"],
+                                value=opt["value"],
+                                selected=opt.get("selected", False),
+                                visible=opt.get("visible", True),
+                                dependentControls=[
+                                    {"name": dc["name"], "visibility": dc["visibility"]}
+                                    for dc in opt.get("dependentControls", [])
+                                ]
+                            ) for opt in radioOptions
+                        ]
+                    if visibilityRules is not None:
+                        existing_control.conditionalVisibility = visibilityRules
+                    return {
+                        "status": "success",
+                        "message": f"Updated control '{existing_control.name}'"
+                    }
+
+            # Create new control configuration
+            control_config = {
+                "name": new_name,
+                "label": new_label,
+                "visibleLabel": True,
+                "type_": controlType,
+                "visible": visible,
+                "validators": [IValidator(required=required, **(validation or {}))] if required or validation else None,
+                "dependentControls": dependentControls,
+                "conditionalVisibility": visibilityRules
+            }
+
+            # Handle radio options with dependent controls
+            if radioOptions:
+                processed_options = []
+                for opt in radioOptions:
+                    if not all(key in opt for key in ["name", "label", "value"]):
+                        raise ValueError(f"Invalid radio option: {opt}. Must have name, label, and value.")
+                    
+                    radio_opt = {
+                        "name": opt["name"],
+                        "label": opt["label"],
+                        "value": opt["value"],
+                        "selected": opt.get("selected", False),
+                        "visible": opt.get("visible", True),
+                        "dependentControls": [
+                            {"name": dc["name"], "visibility": dc["visibility"]}
+                            for dc in opt.get("dependentControls", [])
+                        ] if "dependentControls" in opt else []
+                    }
+                    processed_options.append(radio_opt)
+                control_config["radioOptions"] = [IRadioOption(**opt) for opt in processed_options]
+
+            # Create and add the control
+            control = IFormControl(**control_config)
+            target_section.formControls.append(control)
+
+            # Handle dependent controls if any
+            if dependentControls:
+                self._add_dependent_controls(target_section, control, dependentControls)
+
+            return {
+                "status": "success",
+                "message": f"Added new control '{new_name}' to section '{normalized_title}'",
+                "control_name": new_name,
+                "section": normalized_title,
+                "dependent_controls": [d["name"] for d in (dependentControls or [])]
+            }
+
+        except Exception as e:
+            return {
+                "error": f"Failed to add/update control: {str(e)}",
+                "section": normalized_title,
+                "control_name": new_name if 'new_name' in locals() else None
+            }
+    def _add_dependent_controls(
+        self,
+        section: IFormSections,
+        parent_control: IFormControl,
+        dependent_controls: List[Dict[str, Any]]
+    ) -> None:
+        """Add dependent controls to a section."""
+        for dep in dependent_controls:
+            # Validate required fields
+            if not all(key in dep for key in ["name", "label", "type"]):
+                raise ValueError("Each dependent control must have 'name', 'label', and 'type' fields.")
+
+            # Create dependent control config
+            dep_config = {
+                "name": dep["name"],
+                "label": dep["label"],
+                "type_": dep["type"],
+                "visibleLabel": True,
+                "visible": False,  # Initially hidden
+                "conditionalVisibility": {
+                    "dependsOn": parent_control.name,
+                    "values": dep.get("showOnValues", ["Y"])  # Values that make this control visible
+                },
+                "validators": [
+                    IValidator(**v) for v in dep.get("validators", [])
+                ] if dep.get("validators") else None
+            }
+
+            # Add validation if required
+            if dep.get("required"):
+                if not dep_config["validators"]:
+                    dep_config["validators"] = []
+                dep_config["validators"].append(
+                    IValidator(required=True, message=f"{dep['label']} is required")
+                )
+
+            # Create and add the dependent control
+            dep_control = IFormControl(**dep_config)
+            section.formControls.append(dep_control)
+
+    def _update_dependent_controls(
+        self,
+        section: IFormSections,
+        parent_name: str,
+        dependent_controls: List[Dict[str, Any]]
+    ) -> None:
+        """Update existing dependent controls."""
+        # Remove existing dependent controls
+        section.formControls = [
+            control for control in section.formControls
+            if not (hasattr(control, 'conditionalVisibility') and
+                   control.conditionalVisibility and
+                   control.conditionalVisibility.get('dependsOn') == parent_name)
+        ]
+
+        # Add updated dependent controls
+        for dep in dependent_controls:
+            dep_config = {
+                "name": dep["name"],
+                "label": dep["label"],
+                "type_": dep["type"],
+                "visibleLabel": True,
+                "visible": False,
+                "conditionalVisibility": {
+                    "dependsOn": parent_name,
+                    "values": dep.get("showOnValues", ["Y"])
+                }
+            }
+            
+            dep_control = IFormControl(**dep_config)
+            section.formControls.append(dep_control)
+
+    def get_dependent_controls(self, sectionTitle: str, controlName: str) -> Dict:
+        """Get dependent controls for a specific control."""
         for section in self.form.formSections:
             if section.sectionTitle == sectionTitle:
-                # Check if a control with the same name or label already exists
-                for existing_control in section.formControls:
-                    if existing_control.name == name or existing_control.label.lower() == label.lower():
-                        # Control exists: Update the label or name independently
-                        if label is not None:
-                            existing_control.label = label
-                        if name is not None:
-                            existing_control.name = name
-                        return {"status": "success", "message": f"Updated control '{existing_control.name}'"}
-
-                # Control does not exist: Add a new control
-                new_name = name or to_camel_case(label)  # Use provided name or generate from label
-                new_label = label or name  # Use provided label or default to name
-                control = IFormControl(
-                    name=new_name,
-                    label=new_label,
-                    visibleLabel=True,
-                    type_=controlType,
-                    validators=[IValidator(required=required, **(validation or {}))] if required or validation else None
-                )
-                section.formControls.append(control)
-                return {"status": "success", "control_name": control.name}
+                for control in section.formControls:
+                    if control.name == controlName or control.label.lower() == controlName.lower():
+                        return {
+                            "status": "success",
+                            "dependent_controls": control.dependentControls or []
+                        }
+                return {"error": f"Control '{controlName}' not found in section '{sectionTitle}'"}
         return {"error": f"Section '{sectionTitle}' not found"}
 
     def delete_section(self, sectionTitle: str) -> Dict:
@@ -486,8 +738,13 @@ class FormBuilder:
             return clean_null_values(form_data)
     
     def load_form_data(self, form_data: Dict) -> Dict:
-        """Load existing form data into the form builder."""
+        """
+        Load existing form data into the form builder.
+        - Transforms the JSON data to match Pydantic models.
+        - Processes sections, controls, dependent controls, and visibility rules.
+        """
         try:
+            _transform_dependent_controls(form_data)
             # Step 1: Transform the JSON data to match Pydantic models
             transformed_data = transform_json_for_pydantic(form_data)
 
@@ -529,17 +786,33 @@ class FormBuilder:
                             "urlPath": section.get("urlPath", None),
                             "productFeaturesUrl": section.get("productFeaturesUrl", None)
                         }
+
                         # Process controls in this section
                         if "formControls" in section and isinstance(section["formControls"], list):
                             for control in section["formControls"]:
+                                # Validate and process dependent controls
+                                dependent_controls = control.get("dependentControls", [])
+                                if dependent_controls:
+                                    for dep_control in dependent_controls:
+                                        if not all(key in dep_control for key in ["name", "visibility"]):
+                                            raise ValueError(f"Invalid dependent control: {dep_control}. Each dependent control must have 'name' and 'visibility' fields.")
+
+                                # Create control configuration
                                 control_data = {
                                     "name": control.get("name", f"control_{len(section_data['formControls'])}"),
                                     "label": control.get("label", "Untitled Control"),
                                     "visibleLabel": control.get("visibleLabel", True),
                                     "type_": control.get("type_", "text"),
-                                    "validators": control.get("validators", None)
+                                    "validators": control.get("validators", None),
+                                    "dependentControls": dependent_controls,
+                                    "conditionalVisibility": control.get("conditionalVisibility", None),
+                                    "radioOptions": [
+                                        IRadioOption(**opt) for opt in control.get("radioOptions", [])
+                                    ] if "radioOptions" in control else None
                                 }
                                 section_data["formControls"].append(IFormControl(**control_data))
+
+                        # Append the processed section
                         processed_sections.append(IFormSections(**section_data))
                     processed_data["formSections"] = processed_sections
                 else:
@@ -550,14 +823,16 @@ class FormBuilder:
             total_controls = sum(len(section.formControls) for section in self.form.formSections)
             self.expected_controls_count = total_controls
             self.current_form_id = processed_data.get("id", None)
+
             return {
-                "status": "success", 
+                "status": "success",
                 "message": f"Form loaded successfully with {total_controls} controls"
             }
         except Exception as e:
             print(f"Exception in load_form_data: {str(e)}")
             traceback.print_exc()
             return {"status": "error", "message": f"Error loading form data: {str(e)}"}
+        
 # Initialize FormBuilder
 builder = FormBuilder()
 
@@ -629,19 +904,140 @@ tools = {
         "func": builder.add_section
     },
     "add_control": {
-        "description": "Adds a new control to a section.",
+    "description": "Adds a new control to a section with support for dependent controls and radio options.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "sectionTitle": {
+                "type": "string",
+                "description": "Title of the section where the control will be added."
+            },
+            "controlType": {
+                "type": "string",
+                "description": "Type of the control (e.g., text, email, number, date, select, textarea, checkbox, radio)."
+            },
+            "label": {
+                "type": "string",
+                "description": "Label for the control. This will be displayed to the user."
+            },
+            "name": {
+                "type": "string",
+                "description": "Unique name identifier for the control. If not provided, it will be generated from the label."
+            },
+            "required": {
+                "type": "boolean",
+                "description": "Whether the control is required. Defaults to false if not specified."
+            },
+            "validation": {
+                "type": "object",
+                "description": "Validation rules for the control (e.g., minLength, maxLength, pattern).",
+                "additionalProperties": True
+            },
+            "radioOptions": {
+                "type": "array",
+                "description": "Options for radio button controls. Each option can specify dependent controls.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Unique name for the radio option."
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "Label for the radio option. This will be displayed to the user."
+                        },
+                        "value": {
+                            "type": "string",
+                            "description": "Value associated with the radio option."
+                        },
+                        "selected": {
+                            "type": "boolean",
+                            "description": "Whether this option is selected by default."
+                        },
+                        "visible": {
+                            "type": "boolean",
+                            "description": "Whether this option is visible by default."
+                        },
+                        "dependentControls": {
+                            "type": "array",
+                            "description": "List of dependent controls that should be shown or hidden based on this option.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "description": "Name of the dependent control."
+                                    },
+                                    "visibility": {
+                                        "type": "boolean",
+                                        "description": "Whether the dependent control should be visible when this option is selected."
+                                    }
+                                },
+                                "required": ["name", "visibility"]
+                            }
+                        }
+                    },
+                    "required": ["name", "label", "value"]
+                }
+            },
+            "dependentControls": {
+                "type": "array",
+                "description": "List of controls that depend on this control's value for visibility.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "Name of the dependent control."
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": "Label of the dependent control."
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "Type of the dependent control (e.g., text, date)."
+                        },
+                        "visible": {
+                            "type": "boolean",
+                            "description": "Initial visibility state of the dependent control."
+                        }
+                    },
+                    "required": ["name", "type", "visible"]
+                }
+            },
+            "visibilityRules": {
+                "type": "object",
+                "description": "Rules for conditional visibility of the control based on other controls' values.",
+                "additionalProperties": True
+            }
+        },
+        "required": ["sectionTitle", "controlType", "label"]
+    },
+    "func": builder.add_control
+},
+    "update_dependent_controls": {
+        "description": "Updates dependent control relationships.",
         "parameters": {
             "type": "object",
             "properties": {
                 "sectionTitle": {"type": "string", "description": "Title of the section"},
-                "controlType": {"type": "string", "description": "Type of the control (text, email, number, date, select, textarea, checkbox, radio)"},
-                "label": {"type": "string", "description": "Label of the control"},
-                "required": {"type": "boolean", "description": "Whether the control is required"},
-                "validation": {"type": "object", "description": "Validation rules for the control"}
+                "controlName": {"type": "string", "description": "Name or label of the control"},
+                "dependentControls": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "visibility": {"type": "boolean"}
+                        }
+                    },
+                    "description": "List of dependent control visibility rules"
+                }
             },
-            "required": ["sectionTitle", "controlType", "label"]
+            "required": ["sectionTitle", "controlName", "dependentControls"]
         },
-        "func": builder.add_control
+        "func": builder._update_dependent_controls
     },
     "delete_section": {
         "description": "Deletes a section from the form.",
@@ -691,7 +1087,6 @@ tools = {
         "func": builder.set_form_title
     }
 }
-
 
 def extract_sections_and_controls(prompt: str) -> List[Dict]:
     """
@@ -944,13 +1339,13 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         
         system_prompt = f"""
         You are a form modification assistant. Your task is to modify an existing form based on user requirements.
-        
+                
         The form was loaded {source_info}.
 
         Current form structure:
         Title: {current_form.get('formTitle')}
         {form_details}
-        
+                
         User's request: "{prompt}"
 
         IMPORTANT: You MUST respond with ONLY a JSON array of tool calls to make the requested modifications.
@@ -963,17 +1358,55 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         4. delete_control - Delete a control from a section
         5. update_control_validation - Update validation rules for a control
         6. set_form_title - Change the form title
+        7. _update_dependent_controls - Update the dependent controls of an existing control
 
         When modifying controls:
-        - For delete_control and update_control_validation, you can use either the control's name or label
-        - For add_control, ensure the label doesn't already exist in that section
-        - Make sure to specify all required parameters for each tool call
-        - Be precise with section titles and control names/labels
+        - For delete_control and update_control_validation, you can use either the control's name or label.
+        - For add_control, ensure the label doesn't already exist in that section.
+        - Make sure to specify all required parameters for each tool call.
+        - Be precise with section titles and control names/labels.
 
         When using add_control:
         - If the control already exists (by name or label):
         - Only the requested field (label or name) will be updated, and the other field will remain unchanged.
         - If the control does not exist, a new control will be added with the name set to the camelCase version of the label.
+
+        When adding a radio button control:
+        - Include 'dependentControls' for each option to specify which controls should be shown or hidden.
+        - Each option must define 'dependentControls' as a list of objects with 'name' and 'visibility' fields.
+        - Example:
+        [
+            {{
+                "name": "add_control",
+                "parameters": {{
+                    "sectionTitle": "Policy Details",
+                    "controlType": "radio",
+                    "label": "Do you have an existing policy?",
+                    "name": "hasExistingPolicy",
+                    "radioOptions": [
+                        {{
+                            "name": "yes",
+                            "label": "Yes",
+                            "value": "Y",
+                            "dependentControls": [
+                                {{"name": "policyNumber", "visibility": true}},
+                                {{"name": "policyStartDate", "visibility": true}}
+                            ]
+                        }},
+                        {{
+                            "name": "no",
+                            "label": "No",
+                            "value": "N",
+                            "dependentControls": [
+                                {{"name": "policyNumber", "visibility": false}},
+                                {{"name": "policyStartDate", "visibility": false}}
+                            ]
+                        }}
+                    ]
+                }}
+            }}
+        ]
+
         Example response format:
         [
             {{
@@ -1260,6 +1693,13 @@ def tool_node(state: WorkflowState) -> WorkflowState:
                 if "status" in result and result["status"] in ["success", "warning"]:
                     successful_tools += 1
                 
+                # Convert Pydantic models to dicts for JSON serialization
+                if isinstance(result, dict):
+                    # Convert any Pydantic models in the result to dicts
+                    for key, value in result.items():
+                        if isinstance(value, (IFormSections, IFormControl)):  # Add other models as needed
+                            result[key] = value.dict()  # Convert to dict
+
                 results.append({
                     "tool_call_id": tool_call.get("id", ""),
                     "name": tool_name,
@@ -1327,7 +1767,7 @@ Try again with EXACT section names and proper parameters.
     return {
         "messages": messages + [{
             "role": "tool",
-            "content": json.dumps(results),
+            "content": json.dumps(results),  # This should now work without errors
             "tool_call_id": tool_call.get("id", "") if tool_calls else ""
         }],
         "results": results,
@@ -1418,6 +1858,42 @@ class FormModificationRequest(BaseModel):
     form_json: Optional[Dict] = None
     
 
+@app.post("/update-dependent-controls")
+async def update_dependent_controls(
+    section_title: str, 
+    control_name: str, 
+    dependent_controls: List[Dict[str, bool]]
+) -> Dict:
+    """Update dependent controls for a specific control."""
+    try:
+        result = builder._update_dependent_controls(
+            sectionTitle=section_title,
+            controlName=control_name,
+            dependentControls=dependent_controls
+        )
+        return {
+            "status": "success",
+            "result": result,
+            "form": builder.get_current_form()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/get-dependent-controls")
+async def get_dependent_controls(section_title: str, control_name: str) -> Dict:
+    """Get dependent controls for a specific control."""
+    try:
+        result = builder.get_dependent_controls(
+            sectionTitle=section_title,
+            controlName=control_name
+        )
+        return {
+            "status": "success",
+            "result": result,
+            "form": builder.get_current_form()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-form")
 async def generate_form(request: Union[FormRequestModel, FormModificationRequest, TemplateRequestModel]) -> Dict:
