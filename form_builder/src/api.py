@@ -575,37 +575,162 @@ class FormBuilder:
             section.formControls.append(dep_control)
 
     def _update_dependent_controls(
-        self,
-        section: IFormSections,
-        parent_name: str,
-        dependent_controls: List[Dict[str, Any]]
-    ) -> None:
-        """Update existing dependent controls."""
-        # Remove existing dependent controls
-        section.formControls = [
-            control for control in section.formControls
-            if not (hasattr(control, 'conditionalVisibility') and
-                   control.conditionalVisibility and
-                   control.conditionalVisibility.get('dependsOn') == parent_name)
-        ]
+    self,
+    sectionTitle: str,
+    controlName: str,
+    controlUpdates: List[Dict[str, Any]],
+    delete_dependent: bool = False
+) -> Dict:
+        """Update or delete dependent controls for any control type."""
+        target_section = None
+        for section in self.form.formSections:
+            if section.sectionTitle == sectionTitle:
+                target_section = section
+                break
+                
+        if not target_section:
+            return {"error": f"Section '{sectionTitle}' not found"}
 
-        # Add updated dependent controls
-        for dep in dependent_controls:
-            dep_config = {
-                "name": dep["name"],
-                "label": dep["label"],
-                "type_": dep["type"],
-                "visibleLabel": True,
-                "visible": False,
-                "conditionalVisibility": {
-                    "dependsOn": parent_name,
-                    "values": dep.get("showOnValues", ["Y"])
+        target_control = None
+        for control in target_section.formControls:
+            if (control.name == controlName or 
+                control.label.lower() == controlName.lower()):
+                target_control = control
+                break
+                
+        if not target_control:
+            return {"error": f"Control '{controlName}' not found"}
+
+        changes_made = False
+
+        if delete_dependent:
+            # Get the name of the dependent control to delete
+            dependent_control_name = None
+            if controlUpdates and len(controlUpdates) > 0:
+                if "dependentControls" in controlUpdates[0]:
+                    dependent_control_name = controlUpdates[0]["dependentControls"][0]["name"]
+
+            if not dependent_control_name:
+                return {"error": "No dependent control name specified for deletion"}
+
+            # Handle different control types
+            if hasattr(target_control, 'radioOptions'):
+                # Handle radio buttons
+                for option in target_control.radioOptions:
+                    filtered_controls = [
+                        dep for dep in option.dependentControls
+                        if dep["name"] != dependent_control_name
+                    ]
+                    if len(filtered_controls) != len(option.dependentControls):
+                        option.dependentControls = filtered_controls
+                        changes_made = True
+
+            elif hasattr(target_control, 'options'):
+                # Handle select/dropdown controls
+                for option in target_control.options:
+                    if hasattr(option, 'dependentControls'):
+                        filtered_controls = [
+                            dep for dep in option.dependentControls
+                            if dep["name"] != dependent_control_name
+                        ]
+                        if len(filtered_controls) != len(option.dependentControls):
+                            option.dependentControls = filtered_controls
+                            changes_made = True
+                            
+            elif hasattr(target_control, 'dependentControls'):
+                # Handle other control types with direct dependent controls
+                filtered_controls = [
+                    dep for dep in target_control.dependentControls
+                    if dep["name"] != dependent_control_name
+                ]
+                if len(filtered_controls) != len(target_control.dependentControls):
+                    target_control.dependentControls = filtered_controls
+                    changes_made = True
+
+            if changes_made:
+                # Also remove the actual control from the section
+                target_section.formControls = [
+                    control for control in target_section.formControls
+                    if control.name != dependent_control_name
+                ]
+                return {
+                    "status": "success",
+                    "message": f"Deleted dependent control '{dependent_control_name}'"
                 }
-            }
-            
-            dep_control = IFormControl(**dep_config)
-            section.formControls.append(dep_control)
+        else:
+            # Update functionality
+            for update in controlUpdates:
+                if hasattr(target_control, 'radioOptions'):
+                    # Update radio button dependent controls
+                    for option in target_control.radioOptions:
+                        if option.name == update.get("name"):
+                            existing_deps = {
+                                dep["name"]: dep 
+                                for dep in option.dependentControls
+                            }
+                            for new_dep in update.get("dependentControls", []):
+                                if new_dep["name"] in existing_deps:
+                                    existing_deps[new_dep["name"]]["visibility"] = new_dep["visibility"]
+                                    changes_made = True
+                                elif "add" in new_dep and new_dep["add"]:
+                                    # Add new dependent control
+                                    existing_deps[new_dep["name"]] = {
+                                        "name": new_dep["name"],
+                                        "visibility": new_dep.get("visibility", True)
+                                    }
+                                    changes_made = True
+                            option.dependentControls = list(existing_deps.values())
 
+                elif hasattr(target_control, 'options'):
+                    # Update select/dropdown dependent controls
+                    for option in target_control.options:
+                        if option.name == update.get("name"):
+                            if not hasattr(option, 'dependentControls'):
+                                option.dependentControls = []
+                            existing_deps = {
+                                dep["name"]: dep 
+                                for dep in option.dependentControls
+                            }
+                            for new_dep in update.get("dependentControls", []):
+                                if new_dep["name"] in existing_deps:
+                                    existing_deps[new_dep["name"]]["visibility"] = new_dep["visibility"]
+                                    changes_made = True
+                                elif "add" in new_dep and new_dep["add"]:
+                                    existing_deps[new_dep["name"]] = {
+                                        "name": new_dep["name"],
+                                        "visibility": new_dep.get("visibility", True)
+                                    }
+                                    changes_made = True
+                            option.dependentControls = list(existing_deps.values())
+
+                elif hasattr(target_control, 'dependentControls'):
+                    # Update direct dependent controls
+                    existing_deps = {
+                        dep["name"]: dep 
+                        for dep in target_control.dependentControls
+                    }
+                    for new_dep in update.get("dependentControls", []):
+                        if new_dep["name"] in existing_deps:
+                            existing_deps[new_dep["name"]]["visibility"] = new_dep["visibility"]
+                            changes_made = True
+                        elif "add" in new_dep and new_dep["add"]:
+                            existing_deps[new_dep["name"]] = {
+                                "name": new_dep["name"],
+                                "visibility": new_dep.get("visibility", True)
+                            }
+                            changes_made = True
+                    target_control.dependentControls = list(existing_deps.values())
+
+            if changes_made:
+                return {
+                    "status": "success",
+                    "message": f"Updated dependent controls for '{controlName}'"
+                }
+
+        return {
+            "status": "warning",
+            "message": "No matching dependent controls found to update/delete"
+        }
     def get_dependent_controls(self, sectionTitle: str, controlName: str) -> Dict:
         """Get dependent controls for a specific control."""
         for section in self.form.formSections:
@@ -627,44 +752,95 @@ class FormBuilder:
                 return {"status": "success", "message": f"Section '{sectionTitle}' deleted"}
         return {"error": f"Section '{sectionTitle}' not found"}
 
-    def delete_control(self, sectionTitle: str, controlName: str) -> Dict:
-        """Delete a control from a section. Works with either control name or label."""
+    def delete_control(self, sectionTitle: str, controlName: str, is_dependent: bool = False) -> Dict:
+        """Delete a control from a section and remove all references to it."""
         for section in self.form.formSections:
             if section.sectionTitle == sectionTitle:
-                for i, control in enumerate(section.formControls):
-                    # Match by exact name or by label (case insensitive)
+                changes_made = False
+                controls_to_keep = []
+                
+                # First pass: Remove the control and collect dependencies to clean up
+                for control in section.formControls:
                     if control.name == controlName or control.label.lower() == controlName.lower():
-                        section.formControls.pop(i)
-                        return {"status": "success", "message": f"Control '{controlName}' deleted from section '{sectionTitle}'"}
-                return {"error": f"Control '{controlName}' not found in section '{sectionTitle}'"}
-        return {"error": f"Section '{sectionTitle}' not found"}
+                        changes_made = True
+                        continue  # Skip this control (delete it)
+                    
+                    # Keep this control but clean up any references to the deleted control
+                    # Clean up radio options
+                    if hasattr(control, 'radioOptions'):
+                        for option in control.radioOptions:
+                            if hasattr(option, 'dependentControls'):
+                                option.dependentControls = [
+                                    dep for dep in option.dependentControls
+                                    if dep["name"] != controlName
+                                ]
+                    
+                    # Clean up select/dropdown options
+                    if hasattr(control, 'options'):
+                        for option in control.options:
+                            if hasattr(option, 'dependentControls'):
+                                option.dependentControls = [
+                                    dep for dep in option.dependentControls
+                                    if dep["name"] != controlName
+                                ]
+                    
+                    # Clean up direct dependent controls
+                    if hasattr(control, 'dependentControls'):
+                        control.dependentControls = [
+                            dep for dep in control.dependentControls
+                            if dep["name"] != controlName
+                        ]
+                    
+                    controls_to_keep.append(control)
+                
+                if changes_made:
+                    # Update the section's controls with the cleaned list
+                    section.formControls = controls_to_keep
+                    
+                    # Second pass: Clean up references in all other sections
+                    for other_section in self.form.formSections:
+                        if other_section != section:
+                            for other_control in other_section.formControls:
+                                # Clean up radio options
+                                if hasattr(other_control, 'radioOptions'):
+                                    for option in other_control.radioOptions:
+                                        if hasattr(option, 'dependentControls'):
+                                            option.dependentControls = [
+                                                dep for dep in option.dependentControls
+                                                if dep["name"] != controlName
+                                            ]
+                                
+                                # Clean up select/dropdown options
+                                if hasattr(other_control, 'options'):
+                                    for option in other_control.options:
+                                        if hasattr(option, 'dependentControls'):
+                                            option.dependentControls = [
+                                                dep for dep in option.dependentControls
+                                                if dep["name"] != controlName
+                                            ]
+                                
+                                # Clean up direct dependent controls
+                                if hasattr(other_control, 'dependentControls'):
+                                    other_control.dependentControls = [
+                                        dep for dep in other_control.dependentControls
+                                        if dep["name"] != controlName
+                                    ]
+                    
+                    return {
+                        "status": "success",
+                        "message": f"Control '{controlName}' and all references to it have been removed"
+                    }
+                
+                return {
+                    "error": f"Control '{controlName}' not found in section '{sectionTitle}'"
+                }
+        
+        return {
+            "error": f"Section '{sectionTitle}' not found"
+        }
 
     def update_control_validation(self, sectionTitle: str, controlName: str, validation: Dict) -> Dict:
         """Update validation rules for a control."""
-        # Find the section first
-        target_section = None
-        for section in self.form.formSections:
-            if section.sectionTitle == sectionTitle:
-                target_section = section
-                break
-        
-        if not target_section:
-            return {"error": f"Section '{sectionTitle}' not found"}
-        
-        # Find the control in that section
-        target_control = None
-        for control in target_section.formControls:
-            # Match by exact name or by label (case insensitive)
-            if control.name == controlName or control.label.lower() == controlName.lower():
-                target_control = control
-                break
-        
-        if not target_control:
-            # Make the error message more helpful
-            existing_controls = [f"{c.name} (label: {c.label})" for c in target_section.formControls]
-            return {
-                "error": f"Control '{controlName}' not found in section '{sectionTitle}'. Available controls: {existing_controls}"
-            }
         
         # Create or update validators
         if not target_control.validators:
@@ -1017,28 +1193,7 @@ tools = {
     },
     "func": builder.add_control
 },
-    "update_dependent_controls": {
-        "description": "Updates dependent control relationships.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "sectionTitle": {"type": "string", "description": "Title of the section"},
-                "controlName": {"type": "string", "description": "Name or label of the control"},
-                "dependentControls": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "visibility": {"type": "boolean"}
-                        }
-                    },
-                    "description": "List of dependent control visibility rules"
-                }
-            },
-            "required": ["sectionTitle", "controlName", "dependentControls"]
-        },
-        "func": builder._update_dependent_controls
-    },
+    
     "delete_section": {
         "description": "Deletes a section from the form.",
         "parameters": {
@@ -1051,12 +1206,13 @@ tools = {
         "func": builder.delete_section
     },
     "delete_control": {
-        "description": "Deletes a control from a section.",
+        "description": "Deletes a control or dependent control from a section.",
         "parameters": {
             "type": "object",
             "properties": {
                 "sectionTitle": {"type": "string", "description": "Title of the section"},
-                "controlName": {"type": "string", "description": "Name or label of the control to delete"}
+                "controlName": {"type": "string", "description": "Name or label of the control to delete"},
+                "is_dependent": {"type": "boolean", "description": "Whether this is a dependent control deletion"}
             },
             "required": ["sectionTitle", "controlName"]
         },
@@ -1085,6 +1241,38 @@ tools = {
             "required": ["title"]
         },
         "func": builder.set_form_title
+    },
+    "_update_dependent_controls": {
+        "description": "Updates dependent control relationships for radio button options.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sectionTitle": {"type": "string"},
+                "controlName": {"type": "string"},
+                "radioOptions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "dependentControls": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {"type": "string"},
+                                        "visibility": {"type": "boolean"}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "delete_dependent": {"type": "boolean"}
+            },
+            "required": ["sectionTitle", "controlName", "radioOptions"]
+        },
+        "func": builder._update_dependent_controls
     }
 }
 
@@ -1305,7 +1493,7 @@ async def start_node(state: WorkflowState) -> WorkflowState:
                     if validation_details:
                         validation_info = f" with validation ({', '.join(validation_details)})"
                 
-                controls_info.append(f"{control.get('name')}: {control.get('label')} ({control.get('type_')}){validation_info}")
+                controls_info.append(f"{control.get('name')}: {control.get('label')} ({control.get('type')}){validation_info}")
             
             if controls_info:
                 section_detail = f"Section {idx+1}: {section.get('sectionTitle')}\n"
@@ -1633,6 +1821,10 @@ def llm_node(state: WorkflowState) -> WorkflowState:
             if isinstance(call, dict) and "name" in call and "parameters" in call:
                 if call["name"] in tools:
                     # Create operation signature to detect duplicates
+                    if call["name"] == "_update_dependent_controls":  # Add specific handling
+                        section = call["parameters"].get("sectionTitle", "")
+                        control = call["parameters"].get("controlName", "")
+                        op_signature = f"update_dependent:{section}:{control}"
                     if call["name"] == "add_control":
                         section = call["parameters"].get("sectionTitle", "")
                         label = call["parameters"].get("label", "")
@@ -1753,6 +1945,8 @@ def tool_node(state: WorkflowState) -> WorkflowState:
             "role": "user",
             "content": f"""
 All tool calls failed. Please correct your approach:
+
+
 1. Available sections: {available_sections}
 2. Controls in each section: {json.dumps(controls_by_section, indent=2)}
 3. For delete_control and update_control_validation, you can use either the control's name or label
@@ -1862,23 +2056,42 @@ class FormModificationRequest(BaseModel):
 async def update_dependent_controls(
     section_title: str, 
     control_name: str, 
-    dependent_controls: List[Dict[str, bool]]
+    radio_options: List[Dict[str, Any]],
+    delete_dependent: bool = False
 ) -> Dict:
-    """Update dependent controls for a specific control."""
+    """Update or delete dependent controls for a specific control."""
     try:
+        # Validate radio options structure
+        for option in radio_options:
+            if "name" not in option or "dependentControls" not in option:
+                raise ValueError("Each radio option must have 'name' and 'dependentControls'")
+            for dep in option["dependentControls"]:
+                if "name" not in dep:
+                    raise ValueError("Each dependent control must have 'name'")
+                if not delete_dependent and "visibility" not in dep:
+                    raise ValueError("Each dependent control must have 'visibility' when updating")
+
         result = builder._update_dependent_controls(
             sectionTitle=section_title,
             controlName=control_name,
-            dependentControls=dependent_controls
+            radioOptions=radio_options,
+            delete_dependent=delete_dependent
         )
+        
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+            
         return {
             "status": "success",
             "result": result,
             "form": builder.get_current_form()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error updating dependent controls: {str(e)}"
+        )
+    
 @app.get("/get-dependent-controls")
 async def get_dependent_controls(section_title: str, control_name: str) -> Dict:
     """Get dependent controls for a specific control."""
@@ -2031,21 +2244,32 @@ async def delete_section(section_title: str) -> Dict:
 
 
 @app.post("/delete-control")
-async def delete_control(section_title: str, control_name: str) -> Dict:
-    """Manually delete a control from a section."""
+async def delete_control(
+    section_title: str, 
+    control_name: str,
+    is_dependent: bool = False
+) -> Dict:
+    """Manually delete a control or dependent control from a section."""
     try:
         result = builder.delete_control(
             sectionTitle=section_title,
-            controlName=control_name
+            controlName=control_name,
+            is_dependent=is_dependent
         )
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+            
         return {
-            "status": "success", 
+            "status": "success",
             "result": result,
             "form": builder.get_current_form()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error deleting control: {str(e)}"
+        )
+    
 
 @app.post("/update-validation")
 async def update_validation(section_title: str, control_name: str, validation: Dict) -> Dict:
