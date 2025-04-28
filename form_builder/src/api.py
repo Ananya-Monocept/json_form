@@ -865,16 +865,50 @@ class FormBuilder:
             "message": f"Removed {duplicates_removed} duplicate controls",
             "duplicates_removed": duplicates_removed
         }
+    
+    def transform_type_back(self,data: Any) -> None:
+        """
+        Recursively transform 'type_' fields back to 'type' in the given data structure.
+        """
+        if isinstance(data, dict):
+            # Rename 'type_' to 'type' if it exists
+            if 'type_' in data:
+                data['type'] = data.pop('type_')
+            # Recursively process all values
+            for key, value in data.items():
+                self.transform_type_back(value)
+        elif isinstance(data, list):
+            # Recursively process each item in the list
+            for item in data:
+                self.transform_type_back(item)
 
     # Update the get_current_form method in FormBuilder class
     def get_current_form(self) -> Dict:
-        """Return the current form state with null values removed."""
+        """
+        Return the current form state with null values removed and 'type_' renamed to 'type'.
+        """
         try:
+            # Get the raw form data
             form_data = self.form.model_dump()
-            return clean_null_values(form_data)
+            
+            # Clean null values
+            cleaned_data = clean_null_values(form_data)
+            
+            # Transform 'type_' fields back to 'type'
+            self.transform_type_back(cleaned_data)
+            
+            return cleaned_data
         except AttributeError:
+            # Fallback for older Pydantic versions or custom models
             form_data = self.form.dict()
-            return clean_null_values(form_data)
+            
+            # Clean null values
+            cleaned_data = clean_null_values(form_data)
+            
+            # Transform 'type_' fields back to 'type'
+            transform_type_back(cleaned_data)
+            
+            return cleaned_data
     
     def load_form_data(self, form_data: Dict) -> Dict:
         """
