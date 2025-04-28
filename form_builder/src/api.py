@@ -584,19 +584,21 @@ class FormBuilder:
     ) -> Dict:
         """Update or delete dependent controls."""
         try:
+            # Find target section
             target_section = next(
                 (section for section in self.form.formSections 
-                 if section.sectionTitle == sectionTitle),
+                if section.sectionTitle == sectionTitle),
                 None
             )
             
             if not target_section:
                 return {"error": f"Section '{sectionTitle}' not found"}
 
+            # Find target control
             target_control = next(
                 (control for control in target_section.formControls
-                 if control.name == controlName or 
-                 control.label.lower() == controlName.lower()),
+                if control.name == controlName or 
+                control.label.lower() == controlName.lower()),
                 None
             )
             
@@ -604,7 +606,7 @@ class FormBuilder:
                 return {"error": f"Control '{controlName}' not found"}
 
             if delete_dependent:
-                # Get names of dependent controls to delete
+                # Get all dependent control names to delete
                 dependent_names = set()
                 for option in radioOptions:
                     if "dependentControls" in option:
@@ -620,11 +622,37 @@ class FormBuilder:
                     "message": f"Deleted {len(dependent_names)} dependent controls"
                 }
             
-            # Handle regular updates...
+            # Update radio options and their dependent controls
+            if not hasattr(target_control, "radioOptions"):
+                target_control.radioOptions = []
+                
+            # Process each radio option
+            for option in radioOptions:
+                if not all(key in option for key in ["name", "dependentControls"]):
+                    return {"error": f"Invalid radio option format: {option}"}
+                
+                # Find or create the radio option
+                radio_option = next(
+                    (opt for opt in target_control.radioOptions if opt.name == option["name"]),
+                    None
+                )
+                
+                if radio_option:
+                    # Update existing option's dependent controls
+                    radio_option.dependentControls = option["dependentControls"]
+                else:
+                    # Create new option with dependent controls
+                    target_control.radioOptions.append(IRadioOption(**option))
+
+            return {
+                "status": "success",
+                "message": f"Updated dependent controls for {controlName}",
+                "updated_options": [opt.name for opt in target_control.radioOptions]
+            }
 
         except Exception as e:
             return {"error": f"Error updating dependent controls: {str(e)}"}
-
+    
     def get_dependent_controls(self, sectionTitle: str, controlName: str) -> Dict:
         """Get dependent controls for a specific control."""
         for section in self.form.formSections:
@@ -718,18 +746,75 @@ class FormBuilder:
             }
 
     def update_control_validation(self, sectionTitle: str, controlName: str, validation: Dict) -> Dict:
-        """Update validation rules for a control."""
+        """
+        Update or add validation rules for a control.
+        Handles any validation field defined in IValidator.
+        """
+        # Find the target section
+        target_section = next(
+            (section for section in self.form.formSections if section.sectionTitle == sectionTitle),
+            None
+        )
+        if not target_section:
+            return {"error": f"Section '{sectionTitle}' not found"}
         
-        # Create or update validators
+        # Find the target control
+        target_control = next(
+            (control for control in target_section.formControls 
+            if control.name == controlName or control.label.lower() == controlName.lower()),
+            None
+        )
+        if not target_control:
+            return {"error": f"Control '{controlName}' not found in section '{sectionTitle}'"}
+        
+        # Ensure validators list exists
         if not target_control.validators:
-            target_control.validators = [IValidator(**validation)]
-        else:
-            # Update existing validator
-            for validator in target_control.validators:
-                for key, value in validation.items():
-                    setattr(validator, key, value)
-                    
-        return {"status": "success", "message": f"Validation updated for control '{target_control.name}'"}
+            target_control.validators = []
+        
+        # Process each validation rule
+        for key, value in validation.items():
+            # Normalize key names (e.g., minlength → minLength)
+            normalized_key = key[0].lower() + key[1:]  # Ensure camelCase
+            if normalized_key == "minlength":
+                normalized_key = "minLength"
+            elif normalized_key == "maxlength":
+                normalized_key = "maxLength"
+            
+            # Check if this validation rule already exists
+            existing_validator = next(
+                (v for v in target_control.validators if getattr(v, "validatorName", None) == normalized_key),
+                None
+            )
+            
+            if existing_validator:
+                # Update existing validator
+                setattr(existing_validator, normalized_key, value)
+            else:
+                # Create a new validator with default structure
+                validator_data = {"validatorName": normalized_key}
+                if normalized_key == "required":
+                    validator_data["required"] = True
+                    validator_data["message"] = validation.get("message", "This field is required.")
+                elif normalized_key == "pattern":
+                    validator_data["pattern"] = value
+                    validator_data["message"] = validation.get("message", "Invalid format.")
+                elif normalized_key == "minLength":
+                    validator_data["minLength"] = value
+                    validator_data["message"] = validation.get("message", f"Minimum length is {value}.")
+                elif normalized_key == "maxLength":
+                    validator_data["maxLength"] = value
+                    validator_data["message"] = validation.get("message", f"Maximum length is {value}.")
+                else:
+                    # Unsupported validator
+                    return {"error": f"Unsupported validator: {normalized_key}"}
+                
+                # Add the new validator
+                target_control.validators.append(IValidator(**validator_data))
+        
+        return {
+            "status": "success",
+            "message": f"Validation updated for control '{target_control.name}'"
+        }
 
     def set_form_title(self, title: str) -> Dict:
         """Set the form title."""
