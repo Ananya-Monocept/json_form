@@ -906,10 +906,178 @@ class FormBuilder:
             cleaned_data = clean_null_values(form_data)
             
             # Transform 'type_' fields back to 'type'
-            transform_type_back(cleaned_data)
+            self.transform_type_back(cleaned_data)
             
             return cleaned_data
     
+    
+
+    def add_dynamic_controls(
+        self, 
+        sectionTitle: str, 
+        parentControlName: str, 
+        dynamicControls: List[List[Dict[str, Any]]]
+    ) -> Dict:
+        """Add dynamic controls to a parent control."""
+        try:
+            # Find target section
+            target_section = next(
+                (section for section in self.form.formSections 
+                if section.sectionTitle == sectionTitle),
+                None
+            )
+            
+            if not target_section:
+                return {"error": f"Section '{sectionTitle}' not found"}
+
+            # Find parent control
+            parent_control = next(
+                (control for control in target_section.formControls
+                if control.name == parentControlName),
+                None
+            )
+            
+            if not parent_control:
+                return {"error": f"Parent control '{parentControlName}' not found"}
+
+            # Validate and process dynamic controls
+            processed_controls = []
+            for control_group in dynamicControls:
+                group_controls = []
+                for control_data in control_group:
+                    # Create IFormControl instance for each dynamic control
+                    control_config = {
+                        "name": control_data.get("name"),
+                        "label": control_data.get("label"),
+                        "type_": control_data.get("type"),
+                        "visible": control_data.get("visible", True),
+                        "validators": [IValidator(**v) for v in control_data.get("validators", [])]
+                        if control_data.get("validators") else None
+                    }
+                    group_controls.append(IFormControl(**control_config))
+                processed_controls.append(group_controls)
+
+            # Update parent control's dynamic controls
+            parent_control.dynamicControls = processed_controls
+
+            return {
+                "status": "success",
+                "message": f"Added {len(processed_controls)} dynamic control groups"
+            }
+
+        except Exception as e:
+            return {"error": f"Failed to add dynamic controls: {str(e)}"}
+
+    def update_dynamic_control(
+        self,
+        sectionTitle: str,
+        parentControlName: str,
+        groupIndex: int,
+        controlIndex: int,
+        updates: Dict[str, Any]
+    ) -> Dict:
+        """Update a specific dynamic control."""
+        try:
+            # Find target section
+            target_section = next(
+                (section for section in self.form.formSections 
+                if section.sectionTitle == sectionTitle),
+                None
+            )
+            
+            if not target_section:
+                return {"error": f"Section '{sectionTitle}' not found"}
+
+            # Find parent control
+            parent_control = next(
+                (control for control in target_section.formControls
+                if control.name == parentControlName),
+                None
+            )
+            
+            if not parent_control:
+                return {"error": f"Parent control '{parentControlName}' not found"}
+
+            # Validate indices
+            if not hasattr(parent_control, 'dynamicControls'):
+                return {"error": "Parent control has no dynamic controls"}
+                
+            if groupIndex >= len(parent_control.dynamicControls):
+                return {"error": f"Group index {groupIndex} out of range"}
+                
+            group = parent_control.dynamicControls[groupIndex]
+            if controlIndex >= len(group):
+                return {"error": f"Control index {controlIndex} out of range"}
+
+            # Update the control
+            control = group[controlIndex]
+            for key, value in updates.items():
+                if hasattr(control, key):
+                    setattr(control, key, value)
+
+            return {
+                "status": "success",
+                "message": f"Updated dynamic control at group {groupIndex}, index {controlIndex}"
+            }
+
+        except Exception as e:
+            return {"error": f"Failed to update dynamic control: {str(e)}"}
+
+    def delete_dynamic_control(
+        self,
+        sectionTitle: str,
+        parentControlName: str,
+        groupIndex: int,
+        controlIndex: int
+    ) -> Dict:
+        """Delete a specific dynamic control."""
+        try:
+            # Find target section
+            target_section = next(
+                (section for section in self.form.formSections 
+                if section.sectionTitle == sectionTitle),
+                None
+            )
+            
+            if not target_section:
+                return {"error": f"Section '{sectionTitle}' not found"}
+
+            # Find parent control
+            parent_control = next(
+                (control for control in target_section.formControls
+                if control.name == parentControlName),
+                None
+            )
+            
+            if not parent_control:
+                return {"error": f"Parent control '{parentControlName}' not found"}
+
+            # Validate indices
+            if not hasattr(parent_control, 'dynamicControls'):
+                return {"error": "Parent control has no dynamic controls"}
+                
+            if groupIndex >= len(parent_control.dynamicControls):
+                return {"error": f"Group index {groupIndex} out of range"}
+                
+            group = parent_control.dynamicControls[groupIndex]
+            if controlIndex >= len(group):
+                return {"error": f"Control index {controlIndex} out of range"}
+
+            # Remove the control
+            group.pop(controlIndex)
+
+            # If group is empty, remove it too
+            if not group:
+                parent_control.dynamicControls.pop(groupIndex)
+
+            return {
+                "status": "success",
+                "message": f"Deleted dynamic control at group {groupIndex}, index {controlIndex}"
+            }
+
+        except Exception as e:
+            return {"error": f"Failed to delete dynamic control: {str(e)}"}
+
     def load_form_data(self, form_data: Dict) -> Dict:
         """
         Load existing form data into the form builder.
@@ -1270,7 +1438,83 @@ tools = {
             "required": ["sectionTitle", "controlName", "radioOptions"]
         },
         "func": builder._update_dependent_controls
+    },
+    
+    
+    "add_dynamic_controls": {
+        "description": "Adds dynamic controls to a parent control in a section.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sectionTitle": {
+                    "type": "string",
+                    "description": "Title of the section containing the parent control"
+                },
+                "parentControlName": {
+                    "type": "string",
+                    "description": "Name of the parent control to add dynamic controls to"
+                },
+                "dynamicControls": {
+                    "type": "array",
+                    "description": "Array of control groups to add",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "label": {"type": "string"},
+                                "type": {"type": "string"},
+                                "visible": {"type": "boolean"},
+                                "validators": {
+                                    "type": "array",
+                                    "items": {"type": "object"}
+                                }
+                            },
+                            "required": ["name", "type"]
+                        }
+                    }
+                }
+            },
+            "required": ["sectionTitle", "parentControlName", "dynamicControls"]
+        },
+        "func": builder.add_dynamic_controls
+    },
+
+    "update_dynamic_control": {
+        "description": "Updates a specific dynamic control within a control group.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sectionTitle": {"type": "string"},
+                "parentControlName": {"type": "string"},
+                "groupIndex": {"type": "integer"},
+                "controlIndex": {"type": "integer"},
+                "updates": {
+                    "type": "object",
+                    "description": "Properties to update on the control"
+                }
+            },
+            "required": ["sectionTitle", "parentControlName", "groupIndex", "controlIndex", "updates"]
+        },
+        "func": builder.update_dynamic_control
+    },
+
+    "delete_dynamic_control": {
+        "description": "Deletes a specific dynamic control from a control group.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "sectionTitle": {"type": "string"},
+                "parentControlName": {"type": "string"},
+                "groupIndex": {"type": "integer"},
+                "controlIndex": {"type": "integer"}
+            },
+            "required": ["sectionTitle", "parentControlName", "groupIndex", "controlIndex"]
+        },
+        "func": builder.delete_dynamic_control
     }
+
 }
 
 def extract_sections_and_controls(prompt: str) -> List[Dict]:
@@ -1571,6 +1815,9 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         5. update_control_validation - Update validation rules for a control
         6. set_form_title - Change the form title
         7. _update_dependent_controls - Update the dependent controls of an existing control
+        8. add_dynamic_controls - Add groups of dynamic controls to a parent control
+        9. update_dynamic_control - Update a specific dynamic control
+        10. delete_dynamic_control - Delete a specific dynamic control
 
         When modifying controls:
         - For delete_control and update_control_validation, you can use either the control's name or label.
@@ -1582,6 +1829,42 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         - If the control already exists (by name or label):
         - Only the requested field (label or name) will be updated, and the other field will remain unchanged.
         - If the control does not exist, a new control will be added with the name set to the camelCase version of the label.
+        
+        Dynamic Controls Management:
+        - Dynamic controls are grouped controls that can be added to a parent control
+        - Each group is an array of control configurations
+        - Controls support validation rules and visibility settings
+        - Use indices to target specific controls for updates/deletion
+        - Parent controls must exist before adding dynamic controls
+        
+        [
+            {{
+                "name": "add_dynamic_controls",
+        "parameters": {{
+            "sectionTitle": "Member Details",
+            "parentControlName": "familyMembers",
+            "dynamicControls": [
+                [
+                    {{
+                        "name": "memberName",
+                        "label": "Name",
+                        "type": "text",
+                        "visible": true,
+                        "validators": [
+                            {{"required": true, "message": "Name is required"}}
+                        ]
+                    }},
+                    {{
+                        "name": "memberAge",
+                        "label": "Age",
+                        "type": "number",
+                        "visible": true
+                    }}
+                ]
+            ]
+        }}
+    }}
+]
 
         When adding a radio button control:
         - Include 'dependentControls' for each option to specify which controls should be shown or hidden.
@@ -2439,6 +2722,81 @@ async def save_template(template_name: str) -> Dict:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+@app.post("/add-dynamic-controls")
+async def add_dynamic_controls(
+    section_title: str,
+    parent_control_name: str,
+    dynamic_controls: List[List[Dict[str, Any]]]
+) -> Dict:
+    """Add dynamic controls to a parent control."""
+    try:
+        result = builder.add_dynamic_controls(
+            sectionTitle=section_title,
+            parentControlName=parent_control_name,
+            dynamicControls=dynamic_controls
+        )
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return {
+            "status": "success",
+            "result": result,
+            "form": builder.get_current_form()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/update-dynamic-control")
+async def update_dynamic_control(
+    section_title: str,
+    parent_control_name: str,
+    group_index: int,
+    control_index: int,
+    updates: Dict[str, Any]
+) -> Dict:
+    """Update a specific dynamic control."""
+    try:
+        result = builder.update_dynamic_control(
+            sectionTitle=section_title,
+            parentControlName=parent_control_name,
+            groupIndex=group_index,
+            controlIndex=control_index,
+            updates=updates
+        )
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return {
+            "status": "success",
+            "result": result,
+            "form": builder.get_current_form()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/delete-dynamic-control")
+async def delete_dynamic_control(
+    section_title: str,
+    parent_control_name: str,
+    group_index: int,
+    control_index: int
+) -> Dict:
+    """Delete a specific dynamic control."""
+    try:
+        result = builder.delete_dynamic_control(
+            sectionTitle=section_title,
+            parentControlName=parent_control_name,
+            groupIndex=group_index,
+            controlIndex=control_index
+        )
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+        return {
+            "status": "success",
+            "result": result,
+            "form": builder.get_current_form()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
