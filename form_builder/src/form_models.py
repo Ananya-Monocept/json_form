@@ -19,7 +19,7 @@ class IOptions(BaseModel):
     name: Optional[str]
     other: Optional[Any]
     value: Optional[Any]
-    class_: Optional[str]  # Renamed to avoid conflict with Python's `class`
+    class_: Optional[str]
     selected: Optional[bool]
     dependentControls: Optional[List[str]]
     disabled: Optional[bool]
@@ -31,7 +31,7 @@ class IRadioOption(BaseModel):
     selected: Optional[bool] = False
     year: Optional[str] = None
     discount: Optional[str] = None
-    dependentControls: Optional[List[Dict[str, Union[str, bool]]]] = None  # Allow strings for 'name'
+    dependentControls: Optional[List[Dict[str, Union[str, bool]]]] = None
     visible: bool = True
 
 class ISelectCheckboxOption(BaseModel):
@@ -58,19 +58,19 @@ class IImage(BaseModel):
 class IAdditionalQuestionOption(BaseModel):
     label: str
     value: bool
-    type_: Optional[str]  # Renamed to avoid conflict with Python's `type`
+    type: Optional[str]
 
 class IAdditionalQuestion(BaseModel):
     id: Optional[int]
     label: str
-    type_: Optional[str]  # Renamed to avoid conflict with Python's `type`
-    options: Optional[List[Any]]  # Can include strings or IAdditionalQuestionOption
+    type: Optional[str]
+    options: Optional[List[Any]]
     selectedOption: Optional[str]
 
 class IAdditionalCover(BaseModel):
     id: int
     value: str
-    class_: str  # Renamed to avoid conflict with Python's `class`
+    class_: str
     selected: bool
     description: str
     additionalQuestions: Optional[List[IAdditionalQuestion]]
@@ -80,13 +80,13 @@ class IDynamicControl(BaseModel):
     label: str
     visibleLabel: bool
     key: Optional[str]
-    type_: Optional[str]  # Renamed to avoid conflict with Python's `type`
+    type: Optional[str]
     value: Optional[Any]
     apiEndpoint: Optional[str]
     disabled: Optional[bool]
     relationDisabled: Optional[bool]
     questionCondition: Optional[bool]
-    class_: Optional[str]  # Renamed to avoid conflict with Python's `class`
+    class_: Optional[str]
     restrictKeyPress: Optional[bool]
     methodName: Optional[str]
     visible: Optional[bool]
@@ -113,8 +113,8 @@ class ISubControl(BaseModel):
     name: str
     visibleLabel: Optional[bool]
     label: Optional[str]
-    class_: Optional[str]  # Renamed to avoid conflict with Python's `class`
-    type_: Optional[str]  # Renamed to avoid conflict with Python's `type`
+    class_: Optional[str]
+    type: Optional[str]
     validators: Optional[List[IValidator]]
     value: Optional[Any]
     radioOptions: Optional[List[IRadioOption]]
@@ -151,8 +151,8 @@ class ITab(BaseModel):
     label: str
     content: Any
     selectCheckboxOptions: Optional[List[ISelectCheckboxOption]]
-    type_: str  # Renamed to avoid conflict with Python's `type`
-    class_: str  # Renamed to avoid conflict with Python's `class`
+    type: str
+    class_: str
     visibleLabel: bool
 
 class IConditionalVisibility(BaseModel):
@@ -177,7 +177,7 @@ class IFormControl(BaseModel):
     class_: Optional[str] = None
     cssClass: Optional[str] = None
     showBorder: Optional[bool] = None
-    type_: Optional[str] = None
+    type: Optional[str] = None
     subType: Optional[str] = None
     variableName: Optional[str] = None
     validators: Optional[List[IValidator]] = None
@@ -227,7 +227,7 @@ class IFormControl(BaseModel):
 
 class ISectionButton(BaseModel):
     label: Optional[str]
-    class_: Optional[str]  # Renamed to avoid conflict with Python's `class`
+    class_: Optional[str]
     name: Optional[str]
     visible: bool
     apiEndpoint: Optional[str]
@@ -264,4 +264,4 @@ class IForm(BaseModel):
     prevBtnTitle: Optional[str]
     themeFile: str
     formSections: List[IFormSections]
-    class_: Optional[str]  # Renamed to avoid conflict with Python's `class`
+    class_: Optional[str]
