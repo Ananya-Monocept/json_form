@@ -8,7 +8,7 @@ import re
 import os
 from pathlib import Path
 from langgraph.graph import START, END, Graph
-from form_models import IForm, IFormSections, IFormControl, IValidator, IRadioOption, ISelectCheckboxOption, IImage, IAdditionalQuestion, IAdditionalQuestionOption
+from form_models import IForm, IFormSections, IFormControl, IValidator, IRadioOption, ISelectCheckboxOption, IImage, IAdditionalQuestion, IAdditionalQuestionOption, IDynamicControl
 from langchain_core.runnables.config import RunnableConfig
 from fastapi.middleware.cors import CORSMiddleware
 import traceback
@@ -913,14 +913,14 @@ class FormBuilder:
     
 
     def add_dynamic_controls(
-        self, 
-        sectionTitle: str, 
-        parentControlName: str, 
-        dynamicControls: List[List[Dict[str, Any]]]
-    ) -> Dict:
+    self, 
+    sectionTitle: str, 
+    parentControlName: str, 
+    dynamicControls: List[List[Dict[str, Any]]]
+) -> Dict:
         """Add dynamic controls to a parent control."""
         try:
-            # Find target section
+            # Find target section and parent control...
             target_section = next(
                 (section for section in self.form.formSections 
                 if section.sectionTitle == sectionTitle),
@@ -940,21 +940,56 @@ class FormBuilder:
             if not parent_control:
                 return {"error": f"Parent control '{parentControlName}' not found"}
 
-            # Validate and process dynamic controls
+            # Process each control group
             processed_controls = []
-            for control_group in dynamicControls:
+            for group_idx, control_group in enumerate(dynamicControls):
                 group_controls = []
-                for control_data in control_group:
-                    # Create IFormControl instance for each dynamic control
+                for control_idx, control_data in enumerate(control_group):
+                    # Create control config with proper defaults
                     control_config = {
-                        "name": control_data.get("name"),
-                        "label": control_data.get("label"),
+                        "name": control_data["name"],
+                        "label": control_data.get("label", control_data["name"]),
                         "type_": control_data.get("type"),
+                        "key": f"{control_data['name']}_{group_idx}_{control_idx}",
+                        "apiEndpoint": None,
+                        "disabled": False,
+                        "relationDisabled": False,
+                        "questionCondition": True,  # Changed from "" to True
+                        "restrictKeyPress": False,
+                        "methodName": None,
+                        "options": control_data.get("options", []),
+                        "radioOptions": control_data.get("radioOptions", []),
+                        "selectCheckboxOptions": [],
+                        "bigFont": False,
+                        "subControls": [],
+                        "innerArrayControl": None,
+                        "innerControls": [],
+                        "innerSubControls": [],
+                        "image": None,
+                        "tabs": [],
+                        "onChangeMethod": None,
+                        "getAllOption": "true",  # Changed from False to "true"
+                        "maxDateLength": None,
+                        "minDateLength": None,
+                        "maxLength": None,
+                        "minLength": None,
+                        "inputMaxLength": None,
+                        "visibleLabel": control_data.get("visibleLabel", True),
+                        "value": control_data.get("value"),
                         "visible": control_data.get("visible", True),
-                        "validators": [IValidator(**v) for v in control_data.get("validators", [])]
-                        if control_data.get("validators") else None
+                        "class_": control_data.get("class_"),
+                        "validators": [
+                            IValidator(**v) for v in control_data.get("validators", [])
+                        ] if control_data.get("validators") else None
                     }
-                    group_controls.append(IFormControl(**control_config))
+
+                    # Create IDynamicControl instance
+                    try:
+                        control = IDynamicControl(**control_config)
+                        group_controls.append(control)
+                    except Exception as e:
+                        raise ValueError(f"Failed to create dynamic control {control_data['name']}: {str(e)}")
+
                 processed_controls.append(group_controls)
 
             # Update parent control's dynamic controls
@@ -967,52 +1002,46 @@ class FormBuilder:
 
         except Exception as e:
             return {"error": f"Failed to add dynamic controls: {str(e)}"}
-
+        
     def update_dynamic_control(
-        self,
-        sectionTitle: str,
-        parentControlName: str,
-        groupIndex: int,
-        controlIndex: int,
-        updates: Dict[str, Any]
-    ) -> Dict:
+    self,
+    sectionTitle: str,
+    parentControlName: str,
+    groupIndex: int,
+    controlIndex: int,
+    updates: Dict[str, Any]
+) -> Dict:
         """Update a specific dynamic control."""
         try:
             # Find target section
-            target_section = next(
-                (section for section in self.form.formSections 
-                if section.sectionTitle == sectionTitle),
-                None
-            )
-            
+            target_section = next((section for section in self.form.formSections if section.sectionTitle == sectionTitle), None)
             if not target_section:
                 return {"error": f"Section '{sectionTitle}' not found"}
 
             # Find parent control
-            parent_control = next(
-                (control for control in target_section.formControls
-                if control.name == parentControlName),
-                None
-            )
-            
+            parent_control = next((control for control in target_section.formControls if control.name == parentControlName), None)
             if not parent_control:
                 return {"error": f"Parent control '{parentControlName}' not found"}
 
             # Validate indices
-            if not hasattr(parent_control, 'dynamicControls'):
-                return {"error": "Parent control has no dynamic controls"}
-                
-            if groupIndex >= len(parent_control.dynamicControls):
+            if not hasattr(parent_control, 'dynamicControls') or groupIndex >= len(parent_control.dynamicControls):
                 return {"error": f"Group index {groupIndex} out of range"}
-                
+
             group = parent_control.dynamicControls[groupIndex]
             if controlIndex >= len(group):
                 return {"error": f"Control index {controlIndex} out of range"}
 
-            # Update the control
+            # Get current control for merge
             control = group[controlIndex]
+
+            # Convert validators if present
+            if "validators" in updates:
+                updates["validators"] = [IValidator(**v) for v in updates["validators"]]
+
+            # Apply only valid updates
+            valid_fields = IDynamicControl.__fields__.keys()
             for key, value in updates.items():
-                if hasattr(control, key):
+                if key in valid_fields:
                     setattr(control, key, value)
 
             return {
@@ -1022,7 +1051,7 @@ class FormBuilder:
 
         except Exception as e:
             return {"error": f"Failed to update dynamic control: {str(e)}"}
-
+        
     def delete_dynamic_control(
         self,
         sectionTitle: str,
@@ -1837,34 +1866,47 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         - Use indices to target specific controls for updates/deletion
         - Parent controls must exist before adding dynamic controls
         
+        
+        Example for dynamic controls:
         [
             {{
                 "name": "add_dynamic_controls",
-        "parameters": {{
-            "sectionTitle": "Member Details",
-            "parentControlName": "familyMembers",
-            "dynamicControls": [
-                [
-                    {{
-                        "name": "memberName",
-                        "label": "Name",
-                        "type": "text",
-                        "visible": true,
-                        "validators": [
-                            {{"required": true, "message": "Name is required"}}
+                "parameters": {{
+                    "sectionTitle": "Insured Member Details",
+                    "parentControlName": "insuredMemberDetails",
+                    "dynamicControls": [
+                        [
+                            {{
+                                "name": "sumInsured",
+                                "label": "Sum Insured",
+                                "type": "select",
+                                "visible": true,
+                                "validators": [
+                                    {{"required": true, "message": "Sum Insured is required"}}
+                                ]
+                            }}
                         ]
-                    }},
-                    {{
-                        "name": "memberAge",
-                        "label": "Age",
-                        "type": "number",
-                        "visible": true
+                    ]
+                }}
+            }},
+            {{
+                "name": "update_dynamic_control",
+                "parameters": {{
+                    "sectionTitle": "Insured Member Details",
+                    "parentControlName": "insuredMemberDetails",
+                    "groupIndex": 0,
+                    "controlIndex": 0,
+                    "updates": {{
+                        "options": [
+                            {{"label": "500000", "value": "500000"}},
+                            {{"label": "1000000", "value": "1000000"}}
+                        ]
                     }}
-                ]
-            ]
-        }}
-    }}
-]
+                }}
+            }}
+        ]
+
+
 
         When adding a radio button control:
         - Include 'dependentControls' for each option to specify which controls should be shown or hidden.
