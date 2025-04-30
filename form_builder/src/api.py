@@ -1846,8 +1846,8 @@ def tool_node(state: WorkflowState) -> WorkflowState:
 @workflow.add_node
 def end_node(state: WorkflowState) -> WorkflowState:
     """Finalize the form generation and clean up any duplicates."""
-    dedupe_result = builder.remove_duplicate_controls()
-    print(f"Deduplication result: {dedupe_result}")
+    duplicate_result = builder.remove_duplicate_controls()
+    print(f"Duplication result: {duplicate_result}")
     current_form = builder.get_current_form()
     return {
         "form": current_form,
@@ -1855,8 +1855,9 @@ def end_node(state: WorkflowState) -> WorkflowState:
         "is_modification": state.get("is_modification", False),
         "successful_tools": state.get("successful_tools", 0),
         "failed_tools": state.get("failed_tools", 0),
-        "deduplication": dedupe_result,
+        "deduplication": duplicate_result,
     }
+    
 workflow.set_entry_point("start_node")
 workflow.add_edge("start_node", "llm_node")
 
@@ -2225,4 +2226,4 @@ async def save_template(template_name: str) -> Dict:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=2024)
