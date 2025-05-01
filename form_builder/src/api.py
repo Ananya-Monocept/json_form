@@ -2780,7 +2780,7 @@ async def load_template(template_name: str) -> Dict:
 
 @app.post("/save-template")
 async def save_template(template_name: str) -> Dict:
-    """Save the current form as a template."""
+    """Save the current form as a modified template."""
     try:
         templates_dir = Path("src/form_builder/form_templates")
         if not templates_dir.exists():
@@ -2789,18 +2789,24 @@ async def save_template(template_name: str) -> Dict:
         if not templates_dir.exists():
             templates_dir.mkdir(parents=True, exist_ok=True)
         
-        # Preserve the extension if provided, otherwise default to .json
-        if not template_name.endswith(('.json', '.txt')):
-            template_name = f"{template_name}.json"  # Default to JSON
-            
-        template_path = templates_dir / template_name
+        # Split the filename and extension
+        if template_name.endswith(('.json', '.txt')):
+            base_name = template_name[:-5] if template_name.endswith('.json') else template_name[:-4]
+            extension = '.json' if template_name.endswith('.json') else '.txt'
+        else:
+            base_name = template_name
+            extension = '.json'  # Default to JSON
+        
+        # Create the modified filename
+        modified_name = f"{base_name}_modified{extension}"
+        template_path = templates_dir / modified_name
         
         # Get current form data
         form_data = builder.get_current_form()
         
         # Save to file - format based on extension
         with open(template_path, "w") as f:
-            if template_name.endswith('.json'):
+            if extension == '.json':
                 json.dump(form_data, f, indent=2)
             else:  # .txt file
                 # Still save as JSON format but in a .txt file
@@ -2809,8 +2815,10 @@ async def save_template(template_name: str) -> Dict:
             
         return {
             "status": "success",
-            "message": f"Form saved as template '{template_name}'",
-            "template_path": str(template_path)
+            "message": f"Form saved as modified template '{modified_name}'",
+            "template_path": str(template_path),
+            "original_template": template_name,
+            "modified_template": modified_name
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
