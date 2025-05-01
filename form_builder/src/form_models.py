@@ -58,12 +58,12 @@ class IImage(BaseModel):
 class IAdditionalQuestionOption(BaseModel):
     label: str
     value: bool
-    type: Optional[str]
+    type_: Optional[str]
 
 class IAdditionalQuestion(BaseModel):
     id: Optional[int]
     label: str
-    type: Optional[str]
+    type_: Optional[str]
     options: Optional[List[Any]]
     selectedOption: Optional[str]
 
@@ -80,7 +80,7 @@ class IDynamicControl(BaseModel):
     label: str
     visibleLabel: bool
     key: Optional[str]
-    type: Optional[str]
+    type_: Optional[str]
     value: Optional[Any]
     apiEndpoint: Optional[str]
     disabled: Optional[bool]
@@ -114,7 +114,7 @@ class ISubControl(BaseModel):
     visibleLabel: Optional[bool]
     label: Optional[str]
     class_: Optional[str]
-    type: Optional[str]
+    type_: Optional[str]
     validators: Optional[List[IValidator]]
     value: Optional[Any]
     radioOptions: Optional[List[IRadioOption]]
@@ -151,7 +151,7 @@ class ITab(BaseModel):
     label: str
     content: Any
     selectCheckboxOptions: Optional[List[ISelectCheckboxOption]]
-    type: str
+    type_: str
     class_: str
     visibleLabel: bool
 
@@ -177,7 +177,7 @@ class IFormControl(BaseModel):
     class_: Optional[str] = None
     cssClass: Optional[str] = None
     showBorder: Optional[bool] = None
-    type: Optional[str] = None
+    type_: Optional[str] = None
     subType: Optional[str] = None
     variableName: Optional[str] = None
     validators: Optional[List[IValidator]] = None
