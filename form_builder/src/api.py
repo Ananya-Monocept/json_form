@@ -1300,26 +1300,73 @@ def extract_sections_and_controls(prompt: str) -> List[Dict]:
             field_name = field_name.strip()
             validations = {}
             field_type = None
-            if "text" in field_details.lower():
-                field_type = "text"
-            elif "email" in field_details.lower():
-                field_type = "email"
-            elif "number" in field_details.lower():
-                field_type = "number"
-            elif "date" in field_details.lower():
-                field_type = "date"
-            elif "select" in field_details.lower():
-                field_type = "select"
-            elif "textarea" in field_details.lower():
-                field_type = "textarea"
-            elif "checkbox" in field_details.lower():
-                field_type = "checkbox"
-            elif "radio" in field_details.lower():
-                field_type = "radio"
-            elif "file" in field_details.lower():
-                field_type = "file"
-            else:
-                field_type = "text"
+            
+
+            # In the field_pattern section, update the type detection logic:
+        if "text" in field_details.lower():
+            field_type = "text"
+        elif "email" in field_details.lower():
+            field_type = "email"
+        elif "phone" in field_details.lower() or "mobile" in field_details.lower():
+            field_type = "phonenumber"  # Added phone number type
+        elif "number" in field_details.lower():
+            field_type = "number"
+        elif "date" in field_details.lower():
+            field_type = "date"
+        elif "select" in field_details.lower():
+            field_type = "select"
+        elif "textarea" in field_details.lower():
+            field_type = "textarea"
+        elif "checkbox" in field_details.lower():
+            field_type = "checkbox"
+        elif "radio" in field_details.lower():
+            field_type = "radio"
+        elif "file" in field_details.lower():
+            field_type = "file"
+        elif "paragraph" in field_details.lower():
+            field_type = "paragraph"
+        elif "line" in field_details.lower():
+            field_type = "line"
+        elif "fileupload" in field_details.lower() or "file upload" in field_details.lower():
+            field_type = "fileupload"
+        elif "button" in field_details.lower():
+            field_type = "button"
+        elif "multiselect" in field_details.lower():
+            field_type = "multiselect"
+        elif "bold" in field_details.lower():
+            field_type = "bold"
+        elif "summary" in field_details.lower():
+            field_type = "summary"
+        elif "password" in field_details.lower():
+            field_type = "password"
+        else:
+            field_type = "text"
+              # Default to text if no type specified
+        
+
+        field_config = {
+            "field": field_name,
+            "type": field_type,
+            "validations": {}
+        }
+
+# Add phone number specific validation if needed
+        if field_type == "phonenumber":
+            field_config["validations"] = {
+                "validators": [
+                    {
+                        "validatorName": "required",
+                        "required": True,
+                        "message": "Phone number is required"
+                    },
+                    {
+                        "validatorName": "pattern",
+                        "pattern": "^[6-9]\\d{9}$",  # Indian mobile number format
+                        "message": "Please enter a valid 10-digit phone number"
+                    }
+                ]
+            }
+
             for key, keyword_pattern in field_validation_keywords.items():
                 validation_match = re.search(
                     keyword_pattern, field_details, re.IGNORECASE
