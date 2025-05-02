@@ -462,7 +462,10 @@ class FormBuilder:
     updates: Optional[Dict[str, Any]] = None,
     dynamicControls: Optional[List[List[Dict[str, Any]]]] = None
 ) -> Dict:
-        """Manage dynamic controls while preserving existing ones."""
+        """
+        Manage dynamic controls while preserving existing ones.
+        Handles select controls with options and other control types.
+        """
         try:
             # Find target section
             target_section = next(
@@ -485,19 +488,17 @@ class FormBuilder:
                 if not dynamicControls:
                     return {"error": "No dynamic controls provided"}
 
-                # Store existing controls before modification
+                # Store existing controls
                 existing_controls = []
                 if hasattr(parent_control, 'dynamicControls') and parent_control.dynamicControls:
                     existing_controls = deepcopy(parent_control.dynamicControls)
                 else:
                     parent_control.dynamicControls = []
 
-                print(f"[DEBUG] Existing controls before add: {len(existing_controls)} groups")
-
                 # Process new controls
                 new_groups = []
                 for group in dynamicControls:
-                    # Handle case when we get nested list structure
+                    # Handle nested list structure
                     if isinstance(group, list) and group and isinstance(group[0], list):
                         group = group[0]
 
@@ -511,26 +512,61 @@ class FormBuilder:
                             if 'class' in control_dict:
                                 control_dict['class_'] = control_dict.pop('class')
 
-                            # Add default required fields
+                            # Process options for select controls
+                            if control_dict.get('type_') == 'select':
+                                processed_options = []
+                                raw_options = control_dict.get('options', [])
+                                
+                                # Handle different option formats
+                                for opt in raw_options:
+                                    if isinstance(opt, (int, str)):
+                                        # Convert simple value to full option object
+                                        processed_options.append({
+                                            'name': str(opt),
+                                            'label': f"{int(opt):,}" if str(opt).isdigit() else str(opt),
+                                            'value': str(opt),
+                                            'selected': False,
+                                            'disabled': False
+                                        })
+                                    elif isinstance(opt, dict):
+                                        # Use existing option object with defaults
+                                        processed_options.append({
+                                            'name': opt.get('name', str(opt.get('value', ''))),
+                                            'label': opt.get('label', opt.get('name', '')),
+                                            'value': opt.get('value', opt.get('name', '')),
+                                            'selected': opt.get('selected', False),
+                                            'disabled': opt.get('disabled', False)
+                                        })
+                                control_dict['options'] = processed_options
+
+                            # Process validators if present
+                            if 'validators' in control_dict:
+                                processed_validators = []
+                                for validator in control_dict['validators']:
+                                    if isinstance(validator, dict):
+                                        processed_validators.append(IValidator(**validator))
+                                control_dict['validators'] = processed_validators
+
+                            # Build complete control data
                             complete_control_data = {
                                 "name": control_dict.get('name'),
                                 "label": control_dict.get('label'),
                                 "visibleLabel": control_dict.get('visibleLabel', True),
                                 "key": "",
                                 "type_": control_dict.get('type_', 'text'),
-                                "value": "",
+                                "value": control_dict.get('value', ''),
                                 "apiEndpoint": "",
-                                "disabled": False,
+                                "disabled": control_dict.get('disabled', False),
                                 "relationDisabled": False,
                                 "questionCondition": False,
                                 "class_": control_dict.get('class_', 'col-12 col-md-2'),
                                 "restrictKeyPress": False,
                                 "methodName": "",
                                 "visible": control_dict.get('visible', True),
-                                "options": [],
-                                "validators": [],
-                                "radioOptions": [],
-                                "selectCheckboxOptions": [],
+                                "options": control_dict.get('options', []),
+                                "validators": control_dict.get('validators', []),
+                                "radioOptions": control_dict.get('radioOptions', []),
+                                "selectCheckboxOptions": control_dict.get('selectCheckboxOptions', []),
                                 "bigFont": False,
                                 "subControls": [],
                                 "innerArrayControl": [],
@@ -542,18 +578,19 @@ class FormBuilder:
                                 "getAllOption": "",
                                 "maxDateLength": None,
                                 "minDateLength": None,
-                                "maxLength": None,
-                                "minLength": None,
-                                "inputMaxLength": None
+                                "maxLength": control_dict.get('maxLength'),
+                                "minLength": control_dict.get('minLength'),
+                                "inputMaxLength": control_dict.get('inputMaxLength')
                             }
 
-                            # Update with any additional fields from control_dict
+                            # Update with any additional fields
                             for key, value in control_dict.items():
                                 if key not in complete_control_data:
                                     complete_control_data[key] = value
 
                             control = IDynamicControl(**complete_control_data)
                             validated_group.append(control)
+
                         except Exception as e:
                             print(f"Failed to validate control: {str(e)}")
                             continue
@@ -561,12 +598,9 @@ class FormBuilder:
                     if validated_group:
                         new_groups.append(validated_group)
 
-                # Preserve existing controls by concatenating with new ones
+                # Preserve existing controls
                 combined_controls = existing_controls + new_groups
                 parent_control.dynamicControls = combined_controls
-
-                print(f"[DEBUG] Dynamic controls after add: {len(parent_control.dynamicControls)} groups")
-                print(f"[DEBUG] Groups preserved: {len(existing_controls)}, New groups added: {len(new_groups)}")
 
                 return {
                     "status": "success",
@@ -591,6 +625,28 @@ class FormBuilder:
 
                     control = group[controlIndex]
 
+                    # Handle special updates for select controls
+                    if control.type_ == 'select' and 'options' in updates:
+                        processed_options = []
+                        for opt in updates['options']:
+                            if isinstance(opt, (int, str)):
+                                processed_options.append({
+                                    'name': str(opt),
+                                    'label': f"{int(opt):,}" if str(opt).isdigit() else str(opt),
+                                    'value': str(opt),
+                                    'selected': False,
+                                    'disabled': False
+                                })
+                            elif isinstance(opt, dict):
+                                processed_options.append({
+                                    'name': opt.get('name', str(opt.get('value', ''))),
+                                    'label': opt.get('label', opt.get('name', '')),
+                                    'value': opt.get('value', opt.get('name', '')),
+                                    'selected': opt.get('selected', False),
+                                    'disabled': opt.get('disabled', False)
+                                })
+                        updates['options'] = processed_options
+
                     # Update control fields
                     for key, value in updates.items():
                         if key == 'type':
@@ -604,8 +660,7 @@ class FormBuilder:
                         "status": "success",
                         "message": f"Updated control at position {groupIndex}:{controlIndex}"
                     }
-                except IndexError:
-                    return {"error": f"Invalid group or control index"}
+
                 except Exception as e:
                     return {"error": f"Failed to update control: {str(e)}"}
 
@@ -636,8 +691,7 @@ class FormBuilder:
                         "status": "success",
                         "message": f"Deleted control '{removed_control.name}' at position {groupIndex}:{controlIndex}"
                     }
-                except IndexError:
-                    return {"error": f"Invalid group or control index"}
+
                 except Exception as e:
                     return {"error": f"Failed to delete control: {str(e)}"}
 
@@ -647,7 +701,6 @@ class FormBuilder:
         except Exception as e:
             print(f"Error in manage_dynamic_controls: {str(e)}")
             return {"error": f"Failed to manage dynamic controls: {str(e)}"}
-
 
     def add_control(
         self,
