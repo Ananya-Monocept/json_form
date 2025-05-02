@@ -12,17 +12,26 @@ class IValidator(BaseModel):
 
 class IDependentControl(BaseModel):
     name: str
-    visibility: bool
+    visibility: bool=True
 
 class IOptions(BaseModel):
-    id: Optional[str]
-    name: Optional[str]
-    other: Optional[Any]
-    value: Optional[Any]
-    class_: Optional[str]
-    selected: Optional[bool]
-    dependentControls: Optional[List[str]]
-    disabled: Optional[bool]
+    # Required fields from original document
+    name: Optional[str] = None
+    value: Optional[Any] = None
+    
+    # Optional fields that need to be preserved
+    id: Optional[str] = None
+    class_: Optional[str] = None
+    type_: Optional[str] = None
+    other: Optional[Any] = None
+    selected: Optional[bool] = False
+    # Change this line:
+    dependentControls: Optional[List[Dict[str, Union[str, bool]]]] = None  # Updated to support name and visibility
+    disabled: Optional[bool] = False
+
+    class Config:
+        populate_by_name = True
+        extra = "allow"
 
 class IRadioOption(BaseModel):
     name: str
@@ -31,8 +40,15 @@ class IRadioOption(BaseModel):
     selected: Optional[bool] = False
     year: Optional[str] = None
     discount: Optional[str] = None
-    dependentControls: Optional[List[Dict[str, Union[str, bool]]]] = None
+    # Change this to use IDependentControl instead of Dict
+    dependentControls: Optional[List[IDependentControl]] = None
     visible: bool = True
+
+    model_config = {
+        "populate_by_name": True,
+        "extra": "allow"
+    }
+
 
 class ISelectCheckboxOption(BaseModel):
     label: Optional[str]
@@ -76,38 +92,39 @@ class IAdditionalCover(BaseModel):
     additionalQuestions: Optional[List[IAdditionalQuestion]]
 
 class IDynamicControl(BaseModel):
+    # ...existing code...
     name: str
     label: str
-    visibleLabel: bool
-    key: Optional[str]
-    type_: Optional[str]
-    value: Optional[Any]
-    apiEndpoint: Optional[str]
-    disabled: Optional[bool]
-    relationDisabled: Optional[bool]
-    questionCondition: Optional[bool]
-    class_: Optional[str]
-    restrictKeyPress: Optional[bool]
-    methodName: Optional[str]
-    visible: Optional[bool]
-    options: Optional[List[IOptions]]
-    validators: Optional[List[IValidator]]
-    radioOptions: Optional[List[IRadioOption]]
-    selectCheckboxOptions: Optional[List[ISelectCheckboxOption]]
-    bigFont: Optional[bool]
-    subControls: Optional[List[List["ISubControl"]]]
-    innerArrayControl: Optional[List[List["IDynamicControl"]]]
-    innerControls: Optional[List["ISubControl"]]
-    innerSubControls: Optional[List["ISubControl"]]
-    image: Optional[IImage]
-    tabs: Optional[List["ITab"]]
-    onChangeMethod: Optional[str]
-    getAllOption: Optional[str]
-    maxDateLength: Optional[Any]
-    minDateLength: Optional[Any]
-    maxLength: Optional[int]
-    minLength: Optional[int]
-    inputMaxLength: Optional[int]
+    visibleLabel: bool = True
+    key: Optional[str] = None
+    type_: Optional[str] = None
+    value: Optional[Any] = None
+    apiEndpoint: Optional[str] = None
+    disabled: Optional[bool] = False
+    relationDisabled: Optional[bool] = False
+    questionCondition: Optional[bool] = False
+    class_: Optional[str] = None
+    restrictKeyPress: Optional[bool] = False
+    methodName: Optional[str] = None
+    visible: Optional[bool] = True
+    options: Optional[List[IOptions]] = None
+    validators: Optional[List[IValidator]] = None
+    radioOptions: Optional[List[IRadioOption]] = None
+    selectCheckboxOptions: Optional[List[ISelectCheckboxOption]] = None
+    bigFont: Optional[bool] = False
+    subControls: Optional[List[List["ISubControl"]]] = None
+    innerArrayControl: Optional[List[List["IDynamicControl"]]] = None
+    innerControls: Optional[List["ISubControl"]] = None
+    innerSubControls: Optional[List["ISubControl"]] = None
+    image: Optional[IImage] = None
+    tabs: Optional[List["ITab"]] = None
+    onChangeMethod: Optional[str] = None
+    getAllOption: Optional[str] = None
+    maxDateLength: Optional[Any] = None
+    minDateLength: Optional[Any] = None
+    maxLength: Optional[int] = None
+    minLength: Optional[int] = None
+    inputMaxLength: Optional[int] = None
 
 class ISubControl(BaseModel):
     name: str

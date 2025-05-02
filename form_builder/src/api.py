@@ -18,6 +18,8 @@ from form_models import (
     IImage,
     IAdditionalQuestion,
     IAdditionalQuestionOption,
+    IDependentControl,
+    IDynamicControl
 )
 from langchain_core.runnables.config import RunnableConfig
 from fastapi.middleware.cors import CORSMiddleware
@@ -94,137 +96,218 @@ def _transform_dependent_controls(data: Dict) -> None:
 
 def transform_json_for_pydantic(json_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Transform the JSON structure to match the Pydantic models without modifying the models.
-    This function now supports multiple JSON structures:
-    1. Existing structure (`formSections` directly under root).
-    2. New structure nested under `data → jsonFormData`.
-    3. Structure with `form → sections → fields`.
-    4. Directly provided `formSections` at the root level.
+    Transform the JSON structure to match the Pydantic models while preserving existing data.
+    Supports multiple JSON structures:
+    1. Existing structure (`formSections` directly under root)
+    2. New structure nested under `data → jsonFormData`
+    3. Structure with `form → sections → fields`
+    4. Directly provided `formSections` at the root level
     """
-    transformed_data = {}
     try:
+        # Start with a deep copy of the original data to preserve all fields
+        transformed_data = deepcopy(json_data)
+        
+        # Extract form data from nested structures if present
         form_data = (
             json_data.get("data", {}).get("data", {}).get("jsonFormData", {})
             or json_data.get("data", {}).get("jsonFormData", {})
             or json_data.get("form", {})
             or {}
         )
+
+        # If formSections exists directly in json_data, use that
         if not form_data and "formSections" in json_data:
             form_data = {"formSections": json_data["formSections"]}
-        if not form_data:
+            
+        if not form_data and not transformed_data:
             raise ValueError(
                 f"Could not find valid form data. Available top-level keys: {list(json_data.keys())}"
             )
-        transformed_data = deepcopy(form_data)
+
+        # If we found nested form_data, merge it with transformed_data
+        if form_data:
+            for key, value in form_data.items():
+                transformed_data[key] = value
+
+        # Handle sections → formSections conversion
         if "sections" in transformed_data:
+            sections = transformed_data.pop("sections")
             transformed_data["formSections"] = []
-            for section in transformed_data.pop("sections", []):
+            
+            for section in sections:
                 transformed_section = {
                     "sectionTitle": section.get("sectionName", "Untitled Section"),
                     "sectionId": section.get("sectionId", None),
-                    "visibleLabel": True,
-                    "visible": True,
-                    "class_": None,
+                    "visibleLabel": section.get("visibleLabel", True),
+                    "visible": section.get("visible", True),
+                    "class_": section.get("class_", section.get("class", None)),
                     "formControls": [],
+                    # Preserve other section fields
+                    **{k: v for k, v in section.items() if k not in ["sectionName", "sectionId", "fields", "class", "class_"]}
                 }
+
                 seen_names = set()
+                # Process fields into formControls
                 for field in section.get("fields", []):
-                    if (
-                        field.get("visible", True) is False
-                        or field.get("disabled", False) is True
-                    ):
+                    # Skip if explicitly hidden or disabled
+                    if field.get("visible") is False or field.get("disabled") is True:
                         continue
-                    label = field.get(
-                        "label", field.get("fieldName", "Unnamed Control")
-                    )
+
+                    label = field.get("label", field.get("fieldName", "Unnamed Control"))
                     name = field.get("fieldId", "")
                     if not name:
                         name = to_camel_case(label)
                     if name in seen_names:
                         name = f"{name}_duplicate"
                     seen_names.add(name)
+
                     transformed_field = {
                         "name": name,
                         "label": label,
-                        "visibleLabel": True,
+                        "visibleLabel": field.get("visibleLabel", True),
                         "type_": field.get("type", "text"),
                         "validators": [],
                         "visibilityRules": field.get("visibilityRules", None),
+                        "visible": field.get("visible", True),
+                        "class_": field.get("class_", field.get("class", None)),
+                        # Handle additional fields with defaults
+                        "disabled": field.get("disabled", False),
+                        "required": field.get("required", False),
+                        "dependentControls": field.get("dependentControls", []),
+                        # Preserve other field attributes
+                        **{k: v for k, v in field.items() if k not in [
+                            "fieldId", "fieldName", "type", "validators", 
+                            "visibilityRules", "class", "class_", "options"
+                        ]}
                     }
+
+                    # Transform validators
                     for validator in field.get("validators", []):
                         transformed_validator = {}
                         if validator.get("type") == "required":
-                            transformed_validator["validatorName"] = "required"
-                            transformed_validator["required"] = True
-                            transformed_validator["message"] = validator.get(
-                                "message", "This field is required."
-                            )
+                            transformed_validator.update({
+                                "validatorName": "required",
+                                "required": True,
+                                "message": validator.get("message", "This field is required.")
+                            })
                         elif validator.get("type") == "pattern":
-                            transformed_validator["validatorName"] = "pattern"
-                            transformed_validator["pattern"] = validator.get(
-                                "value", ""
-                            )
-                            transformed_validator["message"] = validator.get(
-                                "message", "Invalid format."
-                            )
+                            transformed_validator.update({
+                                "validatorName": "pattern",
+                                "pattern": validator.get("value", ""),
+                                "message": validator.get("message", "Invalid format.")
+                            })
                         elif validator.get("type") == "minlength":
-                            transformed_validator["validatorName"] = "minLength"
-                            transformed_validator["minLength"] = validator.get(
-                                "value", 0
-                            )
-                            transformed_validator["message"] = validator.get(
-                                "message", "Input too short."
-                            )
+                            transformed_validator.update({
+                                "validatorName": "minLength",
+                                "minLength": validator.get("value", 0),
+                                "message": validator.get("message", "Input too short.")
+                            })
                         elif validator.get("type") == "maxlength":
-                            transformed_validator["validatorName"] = "maxLength"
-                            transformed_validator["maxLength"] = validator.get(
-                                "value", 0
-                            )
-                            transformed_validator["message"] = validator.get(
-                                "message", "Input too long."
-                            )
+                            transformed_validator.update({
+                                "validatorName": "maxLength",
+                                "maxLength": validator.get("value", 0),
+                                "message": validator.get("message", "Input too long.")
+                            })
+                        
+                        # Preserve any other validator fields
+                        transformed_validator.update({
+                            k: v for k, v in validator.items() 
+                            if k not in ["type", "value", "message"]
+                        })
+                        
                         if transformed_validator:
-                            transformed_field["validators"].append(
-                                transformed_validator
-                            )
+                            transformed_field["validators"].append(transformed_validator)
+
+                    # Transform options with all required fields
                     if "options" in field:
-                        transformed_field["options"] = [
-                            {"value": option.get("value"), "label": option.get("label")}
-                            for option in field["options"]
-                        ]
+                        transformed_field["options"] = []
+                        for idx, option in enumerate(field["options"]):
+                            transformed_option = {
+                                "id": str(idx),  # Generate an ID if not present
+                                "name": option.get("name", ""),
+                                "value": option.get("value"),
+                                "other": option.get("other"),
+                                "class_": option.get("class_", option.get("class")),
+                                "type_": option.get("type_", option.get("type")),
+                                "selected": option.get("selected", False),
+                                "dependentControls": option.get("dependentControls", []),
+                                "disabled": option.get("disabled", False),
+                                # Preserve other option fields
+                                **{k: v for k, v in option.items() if k not in [
+                                    "id", "name", "value", "other", "class", "class_",
+                                    "type", "type_", "selected", "dependentControls",
+                                    "disabled"
+                                ]}
+                            }
+                            transformed_field["options"].append(transformed_option)
+
                     transformed_section["formControls"].append(transformed_field)
                 transformed_data["formSections"].append(transformed_section)
+
+        # Process existing formSections
         if "formSections" in transformed_data:
             for section in transformed_data["formSections"]:
+                # Transform class field
                 if "class" in section and "class_" not in section:
                     section["class_"] = section.pop("class")
+
                 seen_names = set()
-                for control in section.get("formControls", []):
-                    if (
-                        control.get("visible", True) is False
-                        or control.get("disabled", False) is True
-                    ):
-                        continue
-                    label = control.get("label", "Unnamed Control")
-                    name = control.get("name", "")
-                    if not name:
-                        name = to_camel_case(label)
-                    if name in seen_names:
-                        name = f"{name}_duplicate"
-                    seen_names.add(name)
-                    control["name"] = name
-                    if "class" in control and "class_" not in control:
-                        control["class_"] = control.pop("class")
-                    for validator in control.get("validators", []):
-                        if "minlength" in validator:
-                            validator["minLength"] = validator.pop("minlength")
-                        if "maxlength" in validator:
-                            validator["maxLength"] = validator.pop("maxlength")
+                if "formControls" in section:
+                    for control in section["formControls"]:
+                        # Skip if explicitly hidden or disabled
+                        if control.get("visible") is False or control.get("disabled") is True:
+                            continue
+
+                        # Process control name and label
+                        label = control.get("label", "Unnamed Control")
+                        name = control.get("name", "")
+                        if not name:
+                            name = to_camel_case(label)
+                        if name in seen_names:
+                            name = f"{name}_duplicate"
+                        seen_names.add(name)
+                        control["name"] = name
+
+                        # Transform class and type fields
+                        if "class" in control and "class_" not in control:
+                            control["class_"] = control.pop("class")
+                        if "type" in control and "type_" not in control:
+                            control["type_"] = control.pop("type")
+
+                        # Transform options if present
+                        if "options" in control:
+                            transformed_options = []
+                            for idx, option in enumerate(control["options"]):
+                                transformed_option = {
+                                    "id": str(idx),
+                                    "name": option.get("name", ""),
+                                    "value": option.get("value"),
+                                    "other": option.get("other"),
+                                    "class_": option.get("class_", option.get("class")),
+                                    "type_": option.get("type_", option.get("type")),
+                                    "selected": option.get("selected", False),
+                                    "dependentControls": option.get("dependentControls", []),
+                                    "disabled": option.get("disabled", False)
+                                }
+                                transformed_options.append(transformed_option)
+                            control["options"] = transformed_options
+
+                        # Transform validators
+                        if "validators" in control:
+                            for validator in control["validators"]:
+                                if "minlength" in validator:
+                                    validator["minLength"] = validator.pop("minlength")
+                                if "maxlength" in validator:
+                                    validator["maxLength"] = validator.pop("maxlength")
+
+        # Apply final transformations
         _transform_class_fields(transformed_data)
         _transform_type_fields(transformed_data)
         _transform_validators(transformed_data)
         _transform_options(transformed_data)
+        _transform_dependent_controls(transformed_data)
         return transformed_data
+
     except Exception as e:
         raise ValueError(f"Error transforming JSON: {str(e)}")
 
@@ -368,6 +451,203 @@ class FormBuilder:
         )
         self.form.formSections.append(new_section)
         return {"status": "success", "section_id": section_id}
+    
+    def manage_dynamic_controls(
+    self,
+    operation: str,
+    sectionTitle: str,
+    parentControlName: str,
+    groupIndex: Optional[int] = None,
+    controlIndex: Optional[int] = None,
+    updates: Optional[Dict[str, Any]] = None,
+    dynamicControls: Optional[List[List[Dict[str, Any]]]] = None
+) -> Dict:
+        """Manage dynamic controls while preserving existing ones."""
+        try:
+            # Find target section
+            target_section = next(
+                (s for s in self.form.formSections if s.sectionTitle == sectionTitle), 
+                None
+            )
+            if not target_section:
+                return {"error": f"Section '{sectionTitle}' not found"}
+
+            # Find parent control
+            parent_control = next(
+                (c for c in target_section.formControls if c.name == parentControlName), 
+                None
+            )
+            if not parent_control:
+                return {"error": f"Parent control '{parentControlName}' not found"}
+
+            # === ADD OPERATION ===
+            if operation == "add":
+                if not dynamicControls:
+                    return {"error": "No dynamic controls provided"}
+
+                # Store existing controls before modification
+                existing_controls = []
+                if hasattr(parent_control, 'dynamicControls') and parent_control.dynamicControls:
+                    existing_controls = deepcopy(parent_control.dynamicControls)
+                else:
+                    parent_control.dynamicControls = []
+
+                print(f"[DEBUG] Existing controls before add: {len(existing_controls)} groups")
+
+                # Process new controls
+                new_groups = []
+                for group in dynamicControls:
+                    # Handle case when we get nested list structure
+                    if isinstance(group, list) and group and isinstance(group[0], list):
+                        group = group[0]
+
+                    validated_group = []
+                    for control_data in group:
+                        try:
+                            # Transform field names
+                            control_dict = control_data.copy()
+                            if 'type' in control_dict:
+                                control_dict['type_'] = control_dict.pop('type')
+                            if 'class' in control_dict:
+                                control_dict['class_'] = control_dict.pop('class')
+
+                            # Add default required fields
+                            complete_control_data = {
+                                "name": control_dict.get('name'),
+                                "label": control_dict.get('label'),
+                                "visibleLabel": control_dict.get('visibleLabel', True),
+                                "key": "",
+                                "type_": control_dict.get('type_', 'text'),
+                                "value": "",
+                                "apiEndpoint": "",
+                                "disabled": False,
+                                "relationDisabled": False,
+                                "questionCondition": False,
+                                "class_": control_dict.get('class_', 'col-12 col-md-2'),
+                                "restrictKeyPress": False,
+                                "methodName": "",
+                                "visible": control_dict.get('visible', True),
+                                "options": [],
+                                "validators": [],
+                                "radioOptions": [],
+                                "selectCheckboxOptions": [],
+                                "bigFont": False,
+                                "subControls": [],
+                                "innerArrayControl": [],
+                                "innerControls": [],
+                                "innerSubControls": [],
+                                "image": None,
+                                "tabs": [],
+                                "onChangeMethod": "",
+                                "getAllOption": "",
+                                "maxDateLength": None,
+                                "minDateLength": None,
+                                "maxLength": None,
+                                "minLength": None,
+                                "inputMaxLength": None
+                            }
+
+                            # Update with any additional fields from control_dict
+                            for key, value in control_dict.items():
+                                if key not in complete_control_data:
+                                    complete_control_data[key] = value
+
+                            control = IDynamicControl(**complete_control_data)
+                            validated_group.append(control)
+                        except Exception as e:
+                            print(f"Failed to validate control: {str(e)}")
+                            continue
+
+                    if validated_group:
+                        new_groups.append(validated_group)
+
+                # Preserve existing controls by concatenating with new ones
+                combined_controls = existing_controls + new_groups
+                parent_control.dynamicControls = combined_controls
+
+                print(f"[DEBUG] Dynamic controls after add: {len(parent_control.dynamicControls)} groups")
+                print(f"[DEBUG] Groups preserved: {len(existing_controls)}, New groups added: {len(new_groups)}")
+
+                return {
+                    "status": "success",
+                    "message": f"Added {len(new_groups)} dynamic control group(s) while preserving {len(existing_controls)} existing groups"
+                }
+
+            # === UPDATE OPERATION ===
+            elif operation == "update":
+                if None in (groupIndex, controlIndex, updates):
+                    return {"error": "Missing parameters for update"}
+
+                try:
+                    if not hasattr(parent_control, 'dynamicControls') or not parent_control.dynamicControls:
+                        return {"error": "No dynamic controls exist to update"}
+
+                    if groupIndex >= len(parent_control.dynamicControls):
+                        return {"error": f"Group index {groupIndex} out of range"}
+
+                    group = parent_control.dynamicControls[groupIndex]
+                    if controlIndex >= len(group):
+                        return {"error": f"Control index {controlIndex} out of range"}
+
+                    control = group[controlIndex]
+
+                    # Update control fields
+                    for key, value in updates.items():
+                        if key == 'type':
+                            setattr(control, 'type_', value)
+                        elif key == 'class':
+                            setattr(control, 'class_', value)
+                        else:
+                            setattr(control, key, value)
+
+                    return {
+                        "status": "success",
+                        "message": f"Updated control at position {groupIndex}:{controlIndex}"
+                    }
+                except IndexError:
+                    return {"error": f"Invalid group or control index"}
+                except Exception as e:
+                    return {"error": f"Failed to update control: {str(e)}"}
+
+            # === DELETE OPERATION ===
+            elif operation == "delete":
+                if None in (groupIndex, controlIndex):
+                    return {"error": "Missing index parameters for delete"}
+
+                try:
+                    if not hasattr(parent_control, 'dynamicControls') or not parent_control.dynamicControls:
+                        return {"error": "No dynamic controls exist to delete"}
+
+                    if groupIndex >= len(parent_control.dynamicControls):
+                        return {"error": f"Group index {groupIndex} out of range"}
+
+                    group = parent_control.dynamicControls[groupIndex]
+                    if controlIndex >= len(group):
+                        return {"error": f"Control index {controlIndex} out of range"}
+
+                    # Remove the control
+                    removed_control = group.pop(controlIndex)
+
+                    # Remove empty group if needed
+                    if not group:
+                        parent_control.dynamicControls.pop(groupIndex)
+
+                    return {
+                        "status": "success",
+                        "message": f"Deleted control '{removed_control.name}' at position {groupIndex}:{controlIndex}"
+                    }
+                except IndexError:
+                    return {"error": f"Invalid group or control index"}
+                except Exception as e:
+                    return {"error": f"Failed to delete control: {str(e)}"}
+
+            else:
+                return {"error": "Invalid operation. Use 'add', 'update', or 'delete'"}
+
+        except Exception as e:
+            print(f"Error in manage_dynamic_controls: {str(e)}")
+            return {"error": f"Failed to manage dynamic controls: {str(e)}"}
+
 
     def add_control(
         self,
@@ -548,72 +828,89 @@ class FormBuilder:
             section.formControls.append(dep_control)
 
     def _update_dependent_controls(
-        self,
-        sectionTitle: str,
-        controlName: str,
-        radioOptions: List[Dict[str, Any]],
-        delete_dependent: bool = False,
-    ) -> Dict:
-        """Update or delete dependent controls."""
+    self, 
+    sectionTitle: str,
+    controlName: str,  # Can be either name or label
+    radioOptions: List[Dict[str, Any]]
+) -> Dict:
+        """
+        Update dependent controls for radio options.
+        
+        Args:
+            sectionTitle: Name of the section containing the control
+            controlName: Name or label of the control to update 
+            radioOptions: List of radio options with dependent controls:
+                [
+                    {
+                        "name": "yes",
+                        "label": "Yes",
+                        "value": "Y",
+                        "dependentControls": [
+                            {"name": "controlName", "visibility": true/false}
+                        ]
+                    }
+                ]
+        """
         try:
+            # Find target section
             target_section = next(
-                (
-                    section
-                    for section in self.form.formSections
-                    if section.sectionTitle == sectionTitle
-                ),
-                None,
+                (section for section in self.form.formSections 
+                if section.sectionTitle.lower() == sectionTitle.lower()),
+                None
             )
             if not target_section:
                 return {"error": f"Section '{sectionTitle}' not found"}
+
+            # Find target control by name or label
             target_control = next(
-                (
-                    control
-                    for control in target_section.formControls
-                    if control.name == controlName
-                    or control.label.lower() == controlName.lower()
-                ),
-                None,
+                (control for control in target_section.formControls
+                if (control.name and control.name.lower() == controlName.lower()) or 
+                    (control.label and control.label.lower() == controlName.lower())),
+                None
             )
             if not target_control:
-                return {"error": f"Control '{controlName}' not found"}
-            if delete_dependent:
-                dependent_names = set()
-                for option in radioOptions:
-                    if "dependentControls" in option:
-                        for dep in option["dependentControls"]:
-                            dependent_names.add(dep["name"])
-                for dep_name in dependent_names:
-                    self.delete_control(sectionTitle, dep_name, is_dependent=True)
-                return {
-                    "status": "success",
-                    "message": f"Deleted {len(dependent_names)} dependent controls",
-                }
-            if not hasattr(target_control, "radioOptions"):
-                target_control.radioOptions = []
+                return {"error": f"Control '{controlName}' not found in section '{sectionTitle}'"}
+
+            # Convert radio options to proper format
+            processed_options = []
             for option in radioOptions:
-                if not all(key in option for key in ["name", "dependentControls"]):
+                if not isinstance(option, dict) or "name" not in option:
                     return {"error": f"Invalid radio option format: {option}"}
-                radio_option = next(
-                    (
-                        opt
-                        for opt in target_control.radioOptions
-                        if opt.name == option["name"]
-                    ),
-                    None,
-                )
-                if radio_option:
-                    radio_option.dependentControls = option["dependentControls"]
-                else:
-                    target_control.radioOptions.append(IRadioOption(**option))
+
+                processed_option = {
+                    "name": option["name"],
+                    "label": option.get("label", option["name"]),
+                    "value": option.get("value", option["name"]),
+                    "selected": option.get("selected", False),
+                    "dependentControls": []
+                }
+
+                # Process dependent controls
+                if "dependentControls" in option:
+                    for dep in option["dependentControls"]:
+                        if not isinstance(dep, dict) or "name" not in dep or "visibility" not in dep:
+                            return {"error": f"Invalid dependent control format: {dep}"}
+                            
+                        # Create proper IDependentControl instance
+                        dependent_control = IDependentControl(
+                            name=dep["name"],
+                            visibility=dep["visibility"]
+                        )
+                        processed_option["dependentControls"].append(dependent_control)
+
+                processed_options.append(processed_option)
+
+            # Update the control's radio options
+            target_control.radioOptions = [IRadioOption(**opt) for opt in processed_options]
+
             return {
                 "status": "success",
                 "message": f"Updated dependent controls for {controlName}",
-                "updated_options": [opt.name for opt in target_control.radioOptions],
+                "updated_options": [opt["name"] for opt in processed_options]
             }
+
         except Exception as e:
             return {"error": f"Error updating dependent controls: {str(e)}"}
-
     def get_dependent_controls(self, sectionTitle: str, controlName: str) -> Dict:
         """Get dependent controls for a specific control."""
         for section in self.form.formSections:
@@ -799,23 +1096,88 @@ class FormBuilder:
         return has_sufficient_structure and total_controls >= min_expected
 
     def remove_duplicate_controls(self) -> Dict:
-        """Remove duplicate controls that have the same label within the same section."""
+        """Remove duplicate controls within each section while preserving unique configurations."""
         duplicates_removed = 0
+        
         for section in self.form.formSections:
-            seen_labels = {}
+            seen_controls = {}
             controls_to_keep = []
+            
             for control in section.formControls:
-                label_key = control.label.lower()
-                if label_key not in seen_labels:
-                    seen_labels[label_key] = control
+                label_key = control.label.lower() if control.label else None
+                name_key = control.name.lower() if control.name else None
+                
+                if not label_key and not name_key:
                     controls_to_keep.append(control)
-                else:
-                    duplicates_removed += 1
+                    continue
+                    
+                # Update to use model_dump() instead of dict()
+                control_config = {
+                    'type_': control.type_,
+                    'validators': [v.model_dump() for v in control.validators] if control.validators else None,
+                    'radioOptions': [opt.model_dump() for opt in control.radioOptions] if control.radioOptions else None,
+                    'selectCheckboxOptions': [opt.model_dump() for opt in control.selectCheckboxOptions] if control.selectCheckboxOptions else None,
+                    'options': [opt.model_dump() for opt in control.options] if control.options else None,
+                    'dependentControls': control.dependentControls,
+                    'visible': control.visible,
+                    'visibleLabel': control.visibleLabel
+                }
+                
+                is_duplicate = False
+                if label_key:
+                    if label_key in seen_controls:
+                        existing_control = seen_controls[label_key]
+                        # Update existing config to use model_dump()
+                        existing_config = {
+                            'type_': existing_control.type_,
+                            'validators': [v.model_dump() for v in existing_control.validators] if existing_control.validators else None,
+                            'radioOptions': [opt.model_dump() for opt in existing_control.radioOptions] if existing_control.radioOptions else None,
+                            'selectCheckboxOptions': [opt.model_dump() for opt in existing_control.selectCheckboxOptions] if existing_control.selectCheckboxOptions else None,
+                            'options': [opt.model_dump() for opt in existing_control.options] if existing_control.options else None,
+                            'dependentControls': existing_control.dependentControls,
+                            'visible': existing_control.visible,
+                            'visibleLabel': existing_control.visibleLabel
+                        }
+                        
+                        if control_config == existing_config:
+                            is_duplicate = True
+                            duplicates_removed += 1
+                    else:
+                        seen_controls[label_key] = control
+
+        
+                if name_key and name_key != label_key:
+                    if name_key in seen_controls:
+                        existing_control = seen_controls[name_key]
+                        existing_config = {
+                            'type_': existing_control.type_,
+                            'validators': [v.model_dump() for v in existing_control.validators] if existing_control.validators else None,
+                            'radioOptions': [opt.model_dump() for opt in existing_control.radioOptions] if existing_control.radioOptions else None,
+                            'selectCheckboxOptions': [opt.model_dump() for opt in existing_control.selectCheckboxOptions] if existing_control.selectCheckboxOptions else None,
+                            'options': [opt.model_dump() for opt in existing_control.options] if existing_control.options else None,
+                            'dependentControls': existing_control.dependentControls,
+                            'visible': existing_control.visible,
+                            'visibleLabel': existing_control.visibleLabel
+                        }
+                        
+                        if control_config == existing_config:
+                            is_duplicate = True
+                            duplicates_removed += 1
+                    else:
+                        seen_controls[name_key] = control
+                
+                # Keep control if not a duplicate
+                if not is_duplicate:
+                    controls_to_keep.append(control)
+                    
+            # Update section's controls
             section.formControls = controls_to_keep
+
         return {
             "status": "success",
             "message": f"Removed {duplicates_removed} duplicate controls",
             "duplicates_removed": duplicates_removed,
+            "details": "Preserved controls with unique configurations"
         }
 
     def get_current_form(self) -> Dict:
@@ -823,7 +1185,7 @@ class FormBuilder:
         Return the current form state with null values removed and 'type_' renamed to 'type'.
         """
         try:
-            # Get the raw form data
+            # Get the raw form data using model_dump()
             form_data = self.form.model_dump()
             
             # Clean null values
@@ -834,21 +1196,21 @@ class FormBuilder:
             
             return cleaned_data
         except AttributeError:
-            # Fallback for older Pydantic versions or custom models
-            form_data = self.form.dict()
+            # Fallback for older Pydantic versions
+            form_data = self.form.model_dump()  # Use model_dump instead of dict()
             
             # Clean null values
             cleaned_data = clean_null_values(form_data)
             
-            # Transform 'type_' fields back to 'type'
+            # Transform 'type_' fields back to 'type'  
             self.transform_type_back(cleaned_data)
             
             return cleaned_data
-    
         
     def transform_type_back(self, data: Any) -> None:
         """
-        Recursively transform 'type_' to 'type' and 'class_' to 'class' in the given data structure.
+        Recursively transform 'type_' back to 'type' and 'class_' back to 'class'
+        while preserving all fields.
         """
         if isinstance(data, dict):
             # Handle type_ conversion
@@ -860,7 +1222,7 @@ class FormBuilder:
                 data['class'] = data.pop('class_')
                 
             # Recursively process all values
-            for key, value in data.items():
+            for value in data.values():
                 self.transform_type_back(value)
                 
         elif isinstance(data, list):
@@ -872,112 +1234,148 @@ class FormBuilder:
     def load_form_data(self, form_data: Dict) -> Dict:
         """
         Load existing form data into the form builder.
-        - Transforms the JSON data to match Pydantic models.
-        - Processes sections, controls, dependent controls, and visibility rules.
+        - Transforms the JSON data to match Pydantic models
+        - Preserves existing form structure and fields
+        - Processes sections, controls, dependent controls, and visibility rules
         """
         try:
+            # Transform dependent controls first
             _transform_dependent_controls(form_data)
+            
+            # Transform JSON while preserving existing data
             transformed_data = transform_json_for_pydantic(form_data)
+            
+            # Start with the base form structure
             processed_data = {
-                "value": None,
-                "valid": None,
-                "get": None,
-                "formTitle": "Untitled Form",
-                "saveBtnTitle": "Save",
-                "resetBtnTitle": "Reset",
-                "calculateBtnTitle": None,
-                "prevBtnTitle": None,
-                "themeFile": "default_theme.json",
+                "value": transformed_data.get("value"),
+                "valid": transformed_data.get("valid"),
+                "get": transformed_data.get("get"),
+                "formTitle": transformed_data.get("formTitle", "Untitled Form"),
+                "saveBtnTitle": transformed_data.get("saveBtnTitle", "Save"),
+                "resetBtnTitle": transformed_data.get("resetBtnTitle", "Reset"),
+                "calculateBtnTitle": transformed_data.get("calculateBtnTitle"),
+                "prevBtnTitle": transformed_data.get("prevBtnTitle"),
+                "themeFile": transformed_data.get("themeFile", "default_theme.json"),
                 "formSections": [],
-                "class_": None,
-                "saveBtnFunction": None,
+                "class_": transformed_data.get("class_"),
+                "saveBtnFunction": transformed_data.get("saveBtnFunction"),
             }
-            for key, value in transformed_data.items():
-                if key == "formSections":
-                    processed_sections = []
-                    for section in value:
-                        section_data = {
-                            "sectionTitle": section.get(
-                                "sectionTitle", "Untitled Section"
-                            ),
-                            "visible": section.get("visible", True),
-                            "apiEndpoint": section.get("apiEndpoint", None),
-                            "controlTypeName": section.get("controlTypeName", None),
-                            "method": section.get("method", None),
-                            "isVisible": section.get("isVisible", True),
-                            "formControls": [],
-                            "visibleLabel": section.get("visibleLabel", True),
-                            "sectionButton": section.get("sectionButton", None),
-                            "class_": section.get("class_", None),
-                            "toolTipText": section.get("toolTipText", None),
-                            "urlDependentControls": section.get(
-                                "urlDependentControls", None
-                            ),
-                            "urlPath": section.get("urlPath", None),
-                            "productFeaturesUrl": section.get(
-                                "productFeaturesUrl", None
-                            ),
-                        }
-                        if "formControls" in section and isinstance(
-                            section["formControls"], list
-                        ):
-                            for control in section["formControls"]:
-                                dependent_controls = control.get(
-                                    "dependentControls", []
-                                )
-                                if dependent_controls:
-                                    for dep_control in dependent_controls:
-                                        if not all(
-                                            key in dep_control
-                                            for key in ["name", "visibility"]
-                                        ):
-                                            raise ValueError(
-                                                f"Invalid dependent control: {dep_control}. Each dependent control must have 'name' and 'visibility' fields."
-                                            )
-                                control_data = {
-                                    "name": control.get(
-                                        "name",
-                                        f"control_{len(section_data['formControls'])}",
-                                    ),
-                                    "label": control.get("label", "Untitled Control"),
-                                    "visibleLabel": control.get("visibleLabel", True),
-                                    "type_": control.get("type_", "text"),
-                                    "validators": control.get("validators", None),
-                                    "dependentControls": dependent_controls,
-                                    "conditionalVisibility": control.get(
-                                        "conditionalVisibility", None
-                                    ),
-                                    "radioOptions": (
-                                        [
-                                            IRadioOption(**opt)
-                                            for opt in control.get("radioOptions", [])
-                                        ]
-                                        if "radioOptions" in control
-                                        else None
-                                    ),
-                                }
-                                section_data["formControls"].append(
-                                    IFormControl(**control_data)
-                                )
-                        processed_sections.append(IFormSections(**section_data))
-                    processed_data["formSections"] = processed_sections
-                else:
-                    processed_data[key] = value
+
+            # Process form sections
+            if "formSections" in transformed_data:
+                processed_sections = []
+                for section in transformed_data["formSections"]:
+                    # Preserve all original section fields while providing defaults
+                    section_data = {
+                        "sectionTitle": section.get("sectionTitle", "Untitled Section"),
+                        "visible": section.get("visible", True),
+                        "isVisible": section.get("isVisible", True),
+                        "visibleLabel": section.get("visibleLabel", True),
+                        "formControls": [],
+                        "class_": section.get("class_"),
+                        
+                        # Preserve additional section fields
+                        "apiEndpoint": section.get("apiEndpoint"),
+                        "controlTypeName": section.get("controlTypeName"),
+                        "method": section.get("method"),
+                        "sectionButton": section.get("sectionButton"),
+                        "toolTipText": section.get("toolTipText"),
+                        "urlDependentControls": section.get("urlDependentControls"),
+                        "urlPath": section.get("urlPath"),
+                        "productFeaturesUrl": section.get("productFeaturesUrl"),
+                        
+                        # Include any other custom fields from the original section
+                        **{k: v for k, v in section.items() if k not in [
+                            "sectionTitle", "visible", "isVisible", "visibleLabel",
+                            "formControls", "class_", "apiEndpoint", "controlTypeName",
+                            "method", "sectionButton", "toolTipText", "urlDependentControls",
+                            "urlPath", "productFeaturesUrl"
+                        ]}
+                    }
+
+                    # Process form controls
+                    if "formControls" in section and isinstance(section["formControls"], list):
+                        for control in section["formControls"]:
+                            # Process options first if present
+                            options = None
+                            if "options" in control:
+                                options = [
+                                    {
+                                        "id": str(idx),  # Generate an ID if not present
+                                        "name": opt.get("name", ""),
+                                        "value": opt.get("value"),
+                                        "other": opt.get("other"),
+                                        "class_": opt.get("class_", opt.get("class")),
+                                        "selected": opt.get("selected", False),
+                                        "dependentControls": opt.get("dependentControls", []),
+                                        "disabled": opt.get("disabled", False)
+                                    }
+                                    for idx, opt in enumerate(control["options"])
+                                ]
+
+                            # Validate dependent controls if present
+                            dependent_controls = control.get("dependentControls", [])
+                            if dependent_controls:
+                                for dep_control in dependent_controls:
+                                    if not all(key in dep_control for key in ["name", "visibility"]):
+                                        raise ValueError(
+                                            f"Invalid dependent control: {dep_control}. "
+                                            "Each dependent control must have 'name' and 'visibility' fields."
+                                        )
+
+                            # Build control data
+                            control_data = {
+                                "name": control.get("name", f"control_{len(section_data['formControls'])}"),
+                                "label": control.get("label", "Untitled Control"),
+                                "visibleLabel": control.get("visibleLabel", True),
+                                "type_": control.get("type_", "text"),
+                                "visible": control.get("visible", True),
+                                "validators": control.get("validators"),
+                                "dependentControls": dependent_controls,
+                                "conditionalVisibility": control.get("conditionalVisibility"),
+                                
+                                # Handle specific control types
+                                "radioOptions": ([IRadioOption(**opt) for opt in control["radioOptions"]] 
+                                            if "radioOptions" in control else None),
+                                "selectCheckboxOptions": control.get("selectCheckboxOptions"),
+                                "options": options,  # Use processed options
+                                
+                                # Preserve other control fields
+                                **{k: v for k, v in control.items() if k not in [
+                                    "name", "label", "visibleLabel", "type_", "visible",
+                                    "validators", "dependentControls", "conditionalVisibility",
+                                    "radioOptions", "selectCheckboxOptions", "options"
+                                ]}
+                            }
+
+                            # Create the control instance
+                            section_data["formControls"].append(IFormControl(**control_data))
+
+                    # Create the section instance
+                    processed_sections.append(IFormSections(**section_data))
+                
+                processed_data["formSections"] = processed_sections
+
+            # Create the form instance
             self.form = IForm(**processed_data)
-            total_controls = sum(
-                len(section.formControls) for section in self.form.formSections
-            )
+
+            # Update control counts and form ID
+            total_controls = sum(len(section.formControls) for section in self.form.formSections)
             self.expected_controls_count = total_controls
-            self.current_form_id = processed_data.get("id", None)
+            self.current_form_id = processed_data.get("id")
+
             return {
                 "status": "success",
-                "message": f"Form loaded successfully with {total_controls} controls",
+                "message": f"Form loaded successfully with {total_controls} controls"
             }
+
         except Exception as e:
             print(f"Exception in load_form_data: {str(e)}")
             traceback.print_exc()
-            return {"status": "error", "message": f"Error loading form data: {str(e)}"}
-
+            return {
+                "status": "error",
+                "message": f"Error loading form data: {str(e)}"
+            }
 builder = FormBuilder()
 
 def get_form_templates_list() -> List[str]:
@@ -1254,7 +1652,33 @@ tools = {
         },
         "func": builder._update_dependent_controls,
     },
+
+    "manage_dynamic_controls": {
+        "description": "Manage dynamic control groups inside a parent control (add, update, delete).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "operation": {"type": "string", "enum": ["add", "update", "delete"]},
+                "sectionTitle": {"type": "string"},
+                "parentControlName": {"type": "string"},
+                "groupIndex": {"type": "integer"},
+                "controlIndex": {"type": "integer"},
+                "updates": {"type": "object"},
+                "dynamicControls": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/IDynamicControl"},
+                    }
+                }
+            },
+            "required": ["operation", "sectionTitle", "parentControlName"]
+        },
+        "func": builder.manage_dynamic_controls,
+    }
 }
+
+
 
 def extract_sections_and_controls(prompt: str) -> List[Dict]:
     """
@@ -1561,6 +1985,74 @@ async def start_node(state: WorkflowState) -> WorkflowState:
         5. update_control_validation - Update validation rules for a control
         6. set_form_title - Change the form title
         7. _update_dependent_controls - Update the dependent controls of an existing control
+        8. manage_dynamic_controls - Manage dynamic control groups inside a parent control
+        Use the `manage_dynamic_controls` tool to:
+            - Add new dynamic control groups without removing existing ones.
+            - Update specific controls using `groupIndex` and `controlIndex`.
+            - Delete controls from a group or remove empty groups.
+
+            Example ADD:
+            {{
+            "name": "manage_dynamic_controls",
+            "parameters": {{
+                "operation": "add",
+                "sectionTitle": "Insured Member Details",
+                "parentControlName": "insuredMemberDetails",
+                "dynamicControls": [[
+                [[
+                    {{
+                    "name": "email",
+                    "label": "Email",
+                    "type_": "email"
+                    }}
+                ]]
+                ]]
+            }}
+            }}
+
+            Example UPDATE:
+            {{
+            "name": "manage_dynamic_controls",
+            "parameters": {{
+                "operation": "update",
+                "sectionTitle": "Insured Member Details",
+                "parentControlName": "insuredMemberDetails",
+                "groupIndex": 0,
+                "controlIndex": 0,
+                "updates": {{
+                "label": "New Email Label"
+                }}
+            }}
+            }}
+
+            Example DELETE:
+            {{
+            "name": "manage_dynamic_controls",
+            "parameters": {{
+                "operation": "delete",
+                "sectionTitle": "Insured Member Details",
+                "parentControlName": "insuredMemberDetails",
+                "groupIndex": 0,
+                "controlIndex": 0
+            }}
+            }}
+
+       
+        a) Use `manage_dynamic_controls` when:
+        - Adding/updating/deleting controls within a dynamic control group
+        - Working with repeatable form sections
+        - Managing arrays of controls
+
+        b) Use `_update_dependent_controls` when:
+        - Modifying radio button dependencies
+        - Updating visibility rules between controls
+        - Managing control relationships
+
+        c) Use `delete_control`/`add_control` when:
+        - Creating new standalone controls
+        - Completely replacing existing controls
+        - No dynamic or dependent relationships exist
+
         When modifying controls:
         - For delete_control and update_control_validation, you can use either the control's name or label.
         - For add_control, ensure the label doesn't already exist in that section.
